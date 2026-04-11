@@ -1,0 +1,77 @@
+# Node / JS
+node_modules/
+npm-debug.log*
+yarn-error.log*
+yarn-debug.log*
+.pnp.*
+
+# React Native / Metro
+.metro-health-check*
+.metro-cache/
+.haste_cache/
+rn-config.json
+
+# Android build artifacts
+android/build/
+android/app/build/
+android/.gradle/
+android/.cxx/
+android/app/.cxx/
+android/app/release/
+android/captures/
+android/app/src/main/assets/index.android.bundle
+android/app/src/main/assets/index.android.bundle.meta
+
+# Android secrets / local
+android/local.properties
+android/keystores/
+*.keystore
+*.jks
+!android/app/debug.keystore
+keystore.properties
+
+# Gradle
+.gradle/
+
+# iOS (not used, but standard)
+ios/Pods/
+ios/build/
+*.xcuserstate
+
+# IDE / editor
+.vscode/
+.idea/
+*.iml
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Claude Code local config
+.claude/
+
+# Python (dataset tooling)
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Private SMS datasets — NEVER commit
+sms_export.json
+sms_filtered_anonymized.json
+somus_real_sms_labeled.jsonl
+sample_150.json
+sample_150_clean.json
+
+# Synthetic datasets (keep out per user request)
+somus_synthetic_sms.jsonl
+somus_lfm_finetune_dataset.jsonl
+
+# Stray Windows shell artifact
+nul
+
+# Logs
+*.log

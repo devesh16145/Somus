@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Somus SMS Labeling Tool</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0D0D0D; color: #fff; padding: 20px; display: flex; justify-content: center; }
+        .container { max-width: 800px; width: 100%; }
+        .card { background: #1A1A1A; border: 1px solid #333; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 16px; margin-bottom: 16px; }
+        .sms-box { background: #262626; padding: 16px; border-radius: 8px; font-size: 16px; line-height: 1.5; margin-bottom: 20px; border-left: 4px solid #00FF94; }
+        .sender-badge { background: #333; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-bottom: 8px; display: inline-block; color: #aaa; }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group.full { grid-column: span 2; }
+        label { display: block; font-size: 12px; color: #888; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        input[type="text"], input[type="number"], select { width: 100%; padding: 10px; background: #000; border: 1px solid #444; color: #fff; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        input:focus, select:focus { border-color: #00FF94; outline: none; }
+        
+        .checkbox-group { display: flex; align-items: center; gap: 10px; background: #000; padding: 10px; border-radius: 6px; border: 1px solid #444; }
+        .checkbox-group input { width: 18px; height: 18px; accent-color: #00FF94; }
+        
+        .actions { display: flex; gap: 12px; margin-top: 24px; }
+        button { padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; border: none; transition: 0.2s; }
+        .btn-primary { background: #00FF94; color: #000; flex: 1; }
+        .btn-primary:hover { background: #00cc76; }
+        .btn-secondary { background: #333; color: #fff; }
+        .btn-secondary:hover { background: #444; }
+        .btn-danger { background: #ff4444; color: #fff; }
+        
+        .stats { font-size: 14px; color: #888; text-align: center; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <div class="header">
+            <h2>Somus SMS Labeler</h2>
+            <div>
+                <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="loadJSON(event)">
+                <button class="btn-secondary" onclick="document.getElementById('fileInput').click()">1. Load sms_filtered_anonymized.json</button>
+                <button class="btn-secondary" onclick="exportData()" id="exportBtn" style="display: none; background: #007bff;">2. Export Labeled Data</button>
+            </div>
+        </div>
+
+        <div id="workspace" style="display: none;">
+            <div class="sms-box">
+                <div class="sender-badge" id="smsSender">SENDER</div>
+                <div id="smsBody">Message content will appear here...</div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label>Is Financial Transaction? (Uncheck for OTPs, Reminders, Promos)</label>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="isFinancial" checked onchange="toggleFields()">
+                        <span style="color: #fff; font-weight: bold;">Yes, this is a COMPLETED money movement</span>
+                    </div>
+                </div>
+
+                <div id="financialFields" class="form-grid full" style="margin: 0; gap: 16px;">
+                    <div class="form-group">
+                        <label>Amount (Numbers only)</label>
+                        <input type="number" id="amount" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Transaction Type</label>
+                        <select id="type">
+                            <option value="DEBIT">DEBIT (Money out)</option>
+                            <option value="CREDIT">CREDIT (Money in)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group full">
+                        <label>Merchant / Payee Name (e.g., SWIGGY, Amazon)</label>
+                        <input type="text" id="merchant">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select id="category">
+                            <option value="FOOD_DINING">FOOD_DINING</option>
+                            <option value="TRANSPORT">TRANSPORT</option>
+                            <option value="SHOPPING">SHOPPING</option>
+                            <option value="GROCERIES">GROCERIES</option>
+                            <option value="UTILITIES">UTILITIES</option>
+                            <option value="ENTERTAINMENT">ENTERTAINMENT</option>
+                            <option value="HEALTH_MEDICAL">HEALTH_MEDICAL</option>
+                            <option value="TRAVEL">TRAVEL</option>
+                            <option value="EDUCATION">EDUCATION</option>
+                            <option value="FUEL">FUEL</option>
+                            <option value="ATM_CASH">ATM_CASH</option>
+                            <option value="TRANSFER">TRANSFER (UPI/NEFT)</option>
+                            <option value="SUBSCRIPTION">SUBSCRIPTION</option>
+                            <option value="INSURANCE">INSURANCE</option>
+                            <option value="RENT">RENT</option>
+                            <option value="OTHER" selected>OTHER</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Account Reference (e.g., XX1234 or null)</label>
+                        <input type="text" id="accountReference" value="XX1234">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Balance (if present in SMS)</label>
+                        <input type="number" id="balance" step="0.01">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Currency Code</label>
+                        <input type="text" id="currencyCode" value="INR">
+                    </div>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn-danger" onclick="skipMessage()" title="Skip junk message">Skip & Next</button>
+                <button class="btn-primary" onclick="saveMessage()">Save & Next SMS</button>
+            </div>
+            
+            <div class="stats" id="statsDisplay">Labeled: 0 | Remaining: 0</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let smsData = [];
+    let labeledData = [];
+    let currentIndex = 0;
+
+    function loadJSON(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            smsData = JSON.parse(e.target.result);
+            document.getElementById('workspace').style.display = 'block';
+            document.getElementById('exportBtn').style.display = 'inline-block';
+            displayCurrentSms();
+        };
+        reader.readAsText(file);
+    }
+
+    function toggleFields() {
+        const isFin = document.getElementById('isFinancial').checked;
+        document.getElementById('financialFields').style.opacity = isFin ? '1' : '0.4';
+        document.getElementById('financialFields').style.pointerEvents = isFin ? 'auto' : 'none';
+        
+        if(!isFin) {
+            document.getElementById('amount').value = '';
+            document.getElementById('merchant').value = '';
+            document.getElementById('balance').value = '';
+        }
+    }
+
+    function displayCurrentSms() {
+        if (currentIndex >= smsData.length) {
+            alert("All done! Please export your data.");
+            return;
+        }
+
+        const msg = smsData[currentIndex];
+        document.getElementById('smsSender').textContent = msg.sender;
+        document.getElementById('smsBody').textContent = msg.body;
+        
+        // Reset form
+        document.getElementById('isFinancial').checked = true;
+        document.getElementById('amount').value = '';
+        document.getElementById('merchant').value = '';
+        document.getElementById('category').value = 'OTHER';
+        document.getElementById('type').value = msg.body.toLowerCase().includes('credit') ? 'CREDIT' : 'DEBIT';
+        document.getElementById('balance').value = '';
+        
+        toggleFields();
+        updateStats();
+
+        // Auto-focus amount field
+        document.getElementById('amount').focus();
+    }
+
+    function saveMessage() {
+        const isFin = document.getElementById('isFinancial').checked;
+        const currentMsg = smsData[currentIndex];
+        
+        const labelStr = JSON.stringify({
+            isFinancial: isFin,
+            amount: isFin ? (parseFloat(document.getElementById('amount').value) || 0) : 0,
+            currencyCode: "INR",
+            merchant: isFin ? document.getElementById('merchant').value : "",
+            category: isFin ? document.getElementById('category').value : "OTHER",
+            type: isFin ? document.getElementById('type').value : "DEBIT",
+            accountReference: isFin ? document.getElementById('accountReference').value || null : null,
+            balance: isFin && document.getElementById('balance').value ? parseFloat(document.getElementById('balance').value) : null,
+            balanceCurrencyCode: "INR",
+            confidence: 0.95
+        });
+
+        // Format to HuggingFace SFT messages array
+        const trainingItem = {
+            "messages": [
+                {"role": "system", "content": "Extract transaction details from this bank SMS as JSON.\n\nIMPORTANT RULES:\n- isFinancial=true ONLY if money HAS ALREADY been debited/credited (past tense)\n- isFinancial=false for: reminders, upcoming payments, \"will be debited\", \"due on\", \"scheduled\", renewals, OTPs, promotions\n- amount: the EXACT number from SMS. Never invent or guess amounts.\n- merchant: the actual payee/store/recipient name, NOT the SMS sender code\n- Output ONLY the JSON, nothing else."},
+                {"role": "user", "content": `SMS sender: ${currentMsg.sender} body: "${currentMsg.body}"`},
+                {"role": "assistant", "content": labelStr}
+            ]
+        };
+
+        labeledData.push(trainingItem);
+        currentIndex++;
+        displayCurrentSms();
+    }
+
+    function skipMessage() {
+        currentIndex++;
+        displayCurrentSms();
+    }
+
+    function updateStats() {
+        document.getElementById('statsDisplay').textContent = `Labeled: ${labeledData.length} | Target: 200 | Remaining in file: ${smsData.length - currentIndex}`;
+    }
+
+    function exportData() {
+        if (labeledData.length === 0) {
+            alert("No data labeled yet!");
+            return;
+        }
+        
+        // Export as JSONL format (one JSON object per line)
+        const jsonlContent = labeledData.map(item => JSON.stringify(item)).join('\n');
+        
+        const blob = new Blob([jsonlContent], { type: 'application/jsonl' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'somus_real_sms_labeled.jsonl';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+</script>
+
+</body>
+</html>

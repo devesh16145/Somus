@@ -642,7 +642,8 @@ const s = StyleSheet.create({
   },
   heroGradient: {
     position: 'relative',
-    padding: 32, // p-8
+    paddingHorizontal: 32,
+    paddingVertical: 40,
     borderRadius: 48,
   },
   heroContent: {
@@ -652,7 +653,7 @@ const s = StyleSheet.create({
   heroLabel: {
     fontFamily: font.label,
     fontSize: 14, // text-sm
-    fontWeight: '500', // font-medium
+    fontWeight: '600',
     color: colors.onPrimary,
     opacity: 0.9, // opacity-90
     letterSpacing: 1.5, // tracking-wider
@@ -666,36 +667,42 @@ const s = StyleSheet.create({
     letterSpacing: -1.5, // tracking-tight
     lineHeight: 64,
   },
-  heroButtons: { flexDirection: 'row', gap: 16, marginTop: 24 }, // mt-6 gap-4
+  heroButtons: { flexDirection: 'row', gap: 16, marginTop: 32 },
   heroPrimaryBtn: {
+    flex: 1, // Let button shrink/grow instead of forcing horizontal padding
     backgroundColor: colors.surfaceContainerLowest, // bg-surface-container-lowest
-    paddingHorizontal: 32, // px-6 -> expanded for M3 feel
-    paddingVertical: 14, // py-2.5 -> expanded for M3 48+px height
+    paddingHorizontal: 16, // reduced from 40 so it doesn't overflow the screen
+    paddingVertical: 14,
     borderRadius: radii.full, // rounded-full
-    minHeight: 48,
+    minHeight: 64, // massive big button
     justifyContent: 'center',
+    alignItems: 'center',
   },
   heroPrimaryBtnText: {
     fontFamily: font.label,
     color: colors.primary, // text-primary
-    fontSize: 15, // M3 Label Large
-    fontWeight: '600', // font-semibold
+    fontSize: 16, // big button text
+    fontWeight: '700',
+    textAlign: 'center', // allow text to wrap on 2 lines nicely
   },
   heroGhostBtn: {
+    flex: 1, // Let button shrink/grow
     backgroundColor: alpha(colors.white, 0.20), // bg-white/20
-    paddingHorizontal: 32, // px-6
-    paddingVertical: 14, // py-2.5
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderRadius: radii.full,
     borderWidth: 1, // border border-white/10
-    borderColor: alpha(colors.white, 0.10),
-    minHeight: 48,
+    borderColor: alpha(colors.white, 0.15),
+    minHeight: 64,
     justifyContent: 'center',
+    alignItems: 'center',
   },
   heroGhostBtnText: {
     fontFamily: font.label,
     color: colors.white,
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 
   // ── Bento grid ──
@@ -705,8 +712,8 @@ const s = StyleSheet.create({
   },
   insightCard: {
     backgroundColor: colors.surfaceContainer, // bg-surface-container
-    borderRadius: 32, // rounded-lg (2rem)
-    padding: 28, // padding increased slightly for softness
+    borderRadius: 40, // very soft card boundaries
+    padding: 32, // very soft padding
   },
   insightHeader: {
     flexDirection: 'row',
@@ -753,11 +760,11 @@ const s = StyleSheet.create({
 
   savingsCard: {
     backgroundColor: colors.secondaryContainer, // bg-secondary-container
-    borderRadius: 32, // rounded-lg
-    padding: 28, // p-6
+    borderRadius: 40, // even softer radii
+    padding: 32, // larger padding
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 16, // space-y-4
+    gap: 16,
   },
   savingsTextBlock: { alignItems: 'center' },
   savingsLabel: {
@@ -831,8 +838,8 @@ const s = StyleSheet.create({
     flexBasis: '47%',
     flexGrow: 1,
     backgroundColor: colors.surfaceContainerLow, // bg-surface-container-low
-    borderRadius: 32, // rounded-lg
-    padding: 24, // p-5 -> 24px padding
+    borderRadius: 40, // very soft card boundaries
+    padding: 24, // good padding
   },
   catCardHeader: {
     flexDirection: 'row',
@@ -870,7 +877,7 @@ const s = StyleSheet.create({
   // Activity
   activityCard: {
     backgroundColor: colors.surfaceContainerLowest, // bg-surface-container-lowest
-    borderRadius: 32, // rounded-lg
+    borderRadius: 40, // very soft card boundaries
     padding: 8, // p-2
     gap: 4, // space-y-1
   },
@@ -878,8 +885,8 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16, // p-4
-    borderRadius: 32, // rounded-lg
+    padding: 20, // increased padding
+    borderRadius: 32, // nicely rounded row
   },
   activityLeft: {
     flexDirection: 'row',
@@ -922,11 +929,11 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 32, // gap-8
     backgroundColor: colors.surfaceContainerHigh,
-    borderTopLeftRadius: 32, // rounded-tl-[2rem]
-    borderTopRightRadius: 8, // rounded-tr-[0.5rem]
-    borderBottomRightRadius: 32, // rounded-br-[2rem]
-    borderBottomLeftRadius: 32, // rounded-bl-[2rem]
-    padding: 32, // p-8
+    borderTopLeftRadius: 48,
+    borderTopRightRadius: 16, // softer asymmetry
+    borderBottomRightRadius: 48,
+    borderBottomLeftRadius: 48,
+    padding: 40, // very plush padding
   },
   billsLeft: { flex: 1, gap: 16 /* space-y-4 */ },
   billsChip: {
@@ -980,15 +987,15 @@ const s = StyleSheet.create({
   },
   billsBtn: {
     backgroundColor: colors.primary, // bg-primary
-    paddingHorizontal: 32, // px-8
+    paddingHorizontal: 40, // px-8
     paddingVertical: 18, // py-4 -> slightly taller
-    borderRadius: 16, // rounded-xl (1rem = 16px based on tailwind default override)
-    minHeight: 56, // M3 minimum height for large buttons
+    borderRadius: 20, // softer radius for button
+    minHeight: 64, // M3 minimum height for large buttons
     justifyContent: 'center',
   },
   billsBtnText: {
     fontFamily: font.label,
-    fontSize: 15, // text-sm -> 15sp
+    fontSize: 17, // text-sm -> 15sp -> bumped to 17sp
     fontWeight: '700', // font-bold
     color: colors.onPrimary,
   },

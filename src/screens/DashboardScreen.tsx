@@ -671,10 +671,10 @@ const s = StyleSheet.create({
   heroPrimaryBtn: {
     flex: 1, // Let button shrink/grow instead of forcing horizontal padding
     backgroundColor: colors.surfaceContainerLowest, // bg-surface-container-lowest
-    paddingHorizontal: 16, // reduced from 40 so it doesn't overflow the screen
-    paddingVertical: 14,
+    paddingHorizontal: 28, // force text wrapping by increasing padding
+    paddingVertical: 16,
     borderRadius: radii.full, // rounded-full
-    minHeight: 64, // massive big button
+    minHeight: 76, // even larger M3 button
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -688,12 +688,12 @@ const s = StyleSheet.create({
   heroGhostBtn: {
     flex: 1, // Let button shrink/grow
     backgroundColor: alpha(colors.white, 0.20), // bg-white/20
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 28,
+    paddingVertical: 16,
     borderRadius: radii.full,
     borderWidth: 1, // border border-white/10
     borderColor: alpha(colors.white, 0.15),
-    minHeight: 64,
+    minHeight: 76,
     justifyContent: 'center',
     alignItems: 'center',
   },

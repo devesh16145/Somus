@@ -30,8 +30,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
@@ -138,18 +136,6 @@ object BankFormatRegistry {
         registry[sender]?.let { return it }
         val upper = sender.uppercase()
         return registry.entries.firstOrNull { (k, _) -> upper.contains(k.uppercase()) }?.value
-    }
-}
-
-// ── LiveTransactionBus ─────────────────────────────────────────
-
-data class LiveTransaction(val dedupKey: String, val result: TransactionResult)
-
-object LiveTransactionBus {
-    private val _events = MutableSharedFlow<LiveTransaction>(extraBufferCapacity = 64)
-    val events: SharedFlow<LiveTransaction> = _events
-    fun emit(key: String, result: TransactionResult) {
-        _events.tryEmit(LiveTransaction(key, result))
     }
 }
 
@@ -386,11 +372,6 @@ class LeapService private constructor(private val context: Context) {
         }
     }
 
-    suspend fun processLiveSms(sender: String, body: String, timestamp: Long, dedupKey: String) {
-        val tx = extractTransaction(sender, body, timestamp) ?: return
-        LiveTransactionBus.emit(dedupKey, tx)
-    }
-
     suspend fun unload() = withContext(Dispatchers.IO) {
         modelRunner?.unload()
         modelRunner = null
@@ -442,19 +423,6 @@ class LeapModule(private val reactContext: ReactApplicationContext) :
     override fun getName() = "LeapModule"
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-
-    init {
-        scope.launch {
-            LiveTransactionBus.events.collect { live ->
-                val params = Arguments.createMap()
-                params.putString("dedupKey", live.dedupKey)
-                params.putMap("transaction", live.result.toWritableMap())
-                reactContext
-                    .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-                    .emit("LeapLiveTransaction", params)
-            }
-        }
-    }
 
     private fun emitProgress(progress: Float) {
         val p = Arguments.createMap()

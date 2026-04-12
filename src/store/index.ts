@@ -24,11 +24,13 @@ interface Store {
   smsReadCount: number;
   smsTotalCount: number;
   txFoundCount: number;
+  pendingCount: number;
   setSyncing: (v: boolean) => void;
   setSyncProgress: (v: { processed: number; total: number } | null) => void;
   setSmsReadCount: (v: number) => void;
   setSmsTotalCount: (v: number) => void;
   setTxFoundCount: (v: number) => void;
+  setPendingCount: (v: number) => void;
 }
 
 export const useStore = create<Store>((set) => ({
@@ -53,9 +55,11 @@ export const useStore = create<Store>((set) => ({
   setDownloadProgress: (downloadProgress) => set({ downloadProgress }),
 
   syncing: false, syncProgress: null, smsReadCount: 0, smsTotalCount: 0, txFoundCount: 0,
+  pendingCount: 0,
   setSyncing: (syncing) => set({ syncing }),
   setSyncProgress: (syncProgress) => set({ syncProgress }),
   setSmsReadCount: (smsReadCount) => set({ smsReadCount }),
   setSmsTotalCount: (smsTotalCount) => set({ smsTotalCount }),
   setTxFoundCount: (txFoundCount) => set({ txFoundCount }),
+  setPendingCount: (pendingCount) => set({ pendingCount }),
 }));

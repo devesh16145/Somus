@@ -1,15 +1,17 @@
 import React, { useEffect } from 'react';
-import { StatusBar, Platform } from 'react-native';
+import { View, StatusBar, AppState } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { initDb } from './database/Database';
 import { useStore } from './store';
 import { LeapModule } from './modules/LeapModule';
 import { SmsOrchestrator } from './services/SmsOrchestrator';
 import { TransactionRepository } from './database/TransactionRepository';
+import { colors, font, alpha } from './theme';
 
 import OnboardingScreen from './screens/OnboardingScreen';
 import DashboardScreen from './screens/DashboardScreen';
@@ -38,70 +40,119 @@ function TabNavigator() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#0D0D0D',
-          borderTopColor: '#1A1A1A',
+          backgroundColor: colors.surfaceContainerLowest, // use a solid opaque color since transparency can look muddy
           borderTopWidth: 1,
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 64,
+          borderTopColor: colors.surfaceContainerHighest,
+          paddingBottom: 24,
+          paddingTop: 12,
+          height: 80,
+          borderTopLeftRadius: 48,
+          borderTopRightRadius: 48,
+          elevation: 0, // completely remove shadow for M3 feel
+          position: 'absolute' as const,
         },
-        tabBarActiveTintColor: '#00FF94',
-        tabBarInactiveTintColor: '#555555',
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: alpha(colors.onSurface, 0.50),
+        tabBarLabelStyle: {
+          fontFamily: font.label,
+          fontSize: 11,
+          fontWeight: '600',
+          letterSpacing: 0.5,
+          marginTop: 4,
+        },
       }}>
       <Tab.Screen
         name="Dashboard"
         component={DashboardScreen}
-        options={{ tabBarLabel: 'Overview', tabBarIcon: ({ color }) => <TabIcon glyph="◉" color={color} /> }}
+        options={{
+          tabBarLabel: 'Dashboard',
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="view-dashboard-outline" color={color} focused={focused} />
+          ),
+        }}
       />
       <Tab.Screen
         name="Transactions"
         component={TransactionsScreen}
-        options={{ tabBarLabel: 'Transactions', tabBarIcon: ({ color }) => <TabIcon glyph="≡" color={color} /> }}
+        options={{
+          tabBarLabel: 'Transactions',
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="receipt-text-outline" color={color} focused={focused} />
+          ),
+        }}
       />
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}
-        options={{ tabBarLabel: 'Settings', tabBarIcon: ({ color }) => <TabIcon glyph="⚙" color={color} /> }}
+        options={{
+          tabBarLabel: 'Settings',
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="cog-outline" color={color} focused={focused} />
+          ),
+        }}
       />
     </Tab.Navigator>
   );
 }
 
-function TabIcon({ glyph, color }: { glyph: string; color: string }) {
-  const { Text } = require('react-native');
-  return <Text style={{ color, fontSize: 18 }}>{glyph}</Text>;
+function TabIcon({ name, color, focused }: { name: string; color: string; focused: boolean }) {
+  return (
+    <View style={{
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: focused ? colors.secondaryContainer : 'transparent',
+      borderRadius: 32,
+      paddingHorizontal: focused ? 24 : 0,
+      paddingVertical: focused ? 6 : 0,
+    }}>
+      <Icon name={name} size={26} color={color} />
+    </View>
+  );
 }
 
 export default function App() {
-  const { setModelLoaded, setTransactions, prependTransaction } = useStore();
+  const { setModelLoaded, setTransactions, setPendingCount } = useStore();
 
   useEffect(() => {
-    // 1. Init database
     try { initDb(); } catch (e) { console.error('DB init failed', e); }
 
-    // 2. Load existing transactions
     const txns = TransactionRepository.getAll(200);
     setTransactions(txns);
 
-    // 3. Check if model is already downloaded
-    LeapModule.isModelLoaded().then(setModelLoaded);
+    const refreshPending = async () => {
+      try {
+        const loaded = await LeapModule.isModelLoaded();
+        setModelLoaded(loaded);
+        if (!loaded) { setPendingCount(0); return; }
+        setPendingCount(await SmsOrchestrator.getPendingCount());
+      } catch {
+        setPendingCount(0);
+      }
+    };
 
-    // 4. Subscribe to live transactions from background service
-    const sub = LeapModule.onLiveTransaction(({ transaction }) => {
-      const saved = SmsOrchestrator.handleLiveTransaction(transaction);
-      if (saved) prependTransaction(saved);
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    const startPolling = () => {
+      if (pollTimer) return;
+      pollTimer = setInterval(refreshPending, 10_000);
+    };
+    const stopPolling = () => {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    };
+
+    refreshPending();
+    startPolling();
+
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') { refreshPending(); startPolling(); }
+      else stopPolling();
     });
 
-    // 5. Don't auto-sync on open — let user trigger import from Settings
-    //    Auto-sync blocks the AI model and prevents manual imports from working
-
-    return () => { sub.remove(); };
+    return () => { stopPolling(); sub.remove(); };
   }, []);
 
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle="light-content" backgroundColor="#0D0D0D" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />

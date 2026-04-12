@@ -4,7 +4,6 @@
 
     <!-- SMS permissions -->
     <uses-permission android:name="android.permission.READ_SMS" />
-    <uses-permission android:name="android.permission.RECEIVE_SMS" />
 
     <!-- Model download (one-time only) -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -38,22 +37,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <!-- Live SMS receiver (Mode B) -->
-        <receiver
-            android:name=".sms.SmsReceiver"
-            android:exported="true"
-            android:permission="android.permission.BROADCAST_SMS">
-            <intent-filter android:priority="999">
-                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
-            </intent-filter>
-        </receiver>
-
-        <!-- Foreground service for live SMS AI processing -->
-        <service
-            android:name=".sms.SmsForegroundService"
-            android:foregroundServiceType="dataSync"
-            android:exported="false" />
 
         <!-- WorkManager for LEAP model downloader -->
         <provider

@@ -9,7 +9,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useStore } from '../store';
 import { TransactionRepository } from '../database/TransactionRepository';
-import { SmsOrchestrator } from '../services/SmsOrchestrator';
 import { CATEGORY_LABELS, CATEGORY_EMOJI, Transaction } from '../types/Transaction';
 import { TxCategory } from '../modules/LeapModule';
 import { RootStackParams } from '../App';
@@ -42,8 +41,7 @@ export default function TransactionsScreen() {
   async function onRefresh() {
     setRefreshing(true);
     try {
-      const n = await SmsOrchestrator.syncOnOpen();
-      if (n > 0) setTransactions(TransactionRepository.getAll(200));
+      setTransactions(TransactionRepository.getAll(200));
     } catch {}
     setRefreshing(false);
   }

@@ -30,8 +30,6 @@ export const LeapModule = {
     leapEmitter.addListener('LeapModelProgress', cb),
   onBatchProgress: (cb: (e: { processed: number; total: number }) => void) =>
     leapEmitter.addListener('LeapBatchProgress', cb),
-  onLiveTransaction: (cb: (e: { dedupKey: string; transaction: TxResult }) => void) =>
-    leapEmitter.addListener('LeapLiveTransaction', cb),
 };
 
 export const MODELS = {

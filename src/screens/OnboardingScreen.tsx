@@ -55,13 +55,10 @@ export default function OnboardingScreen() {
   async function requestSmsPermission() {
     setError(null);
     try {
-      const result = await PermissionsAndroid.requestMultiple([
+      const result = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.READ_SMS,
-        PermissionsAndroid.PERMISSIONS.RECEIVE_SMS,
-      ]);
-      const granted =
-        result[PermissionsAndroid.PERMISSIONS.READ_SMS] === 'granted' &&
-        result[PermissionsAndroid.PERMISSIONS.RECEIVE_SMS] === 'granted';
+      );
+      const granted = result === 'granted';
 
       setSmsGranted(granted);
       if (granted) {
@@ -179,11 +176,6 @@ function PermissionStep({ onGrant, error }: { onGrant: () => void; error: string
         <Text style={s.permissionName}>READ_SMS</Text>
         <Text style={s.permissionDesc}>Read incoming and existing SMS messages</Text>
       </View>
-      <View style={s.permissionCard}>
-        <Text style={s.permissionIcon}>📶</Text>
-        <Text style={s.permissionName}>RECEIVE_SMS</Text>
-        <Text style={s.permissionDesc}>Get notified when new SMS arrives</Text>
-      </View>
 
       {error && <Text style={s.errorText}>{error}</Text>}
 
@@ -192,7 +184,7 @@ function PermissionStep({ onGrant, error }: { onGrant: () => void; error: string
       </TouchableOpacity>
 
       <Text style={s.footNote}>
-        Android will show its standard permission dialog. Tap "Allow" on both.
+        Android will show its standard permission dialog. Tap "Allow".
       </Text>
     </View>
   );

@@ -94,6 +94,29 @@ export const TransactionRepository = {
     return rows?._array?.[0]?.c ?? 0;
   },
 
+  getAllTimeTotals(): { totalSpend: number; totalIncome: number } {
+    const { rows } = getDb().execute(
+      `SELECT type, SUM(amount) as total FROM transactions GROUP BY type`
+    );
+    let totalSpend = 0, totalIncome = 0;
+    for (const r of rows?._array ?? []) {
+      if (r.type === 'DEBIT') totalSpend = r.total ?? 0;
+      else if (r.type === 'CREDIT') totalIncome = r.total ?? 0;
+    }
+    return { totalSpend, totalIncome };
+  },
+
+  getLatestByCategory(category: TxCategory): Transaction | null {
+    const { rows } = getDb().execute(
+      `SELECT * FROM transactions
+       WHERE COALESCE(user_category, category) = ?
+       ORDER BY sms_date DESC LIMIT 1`,
+      [category]
+    );
+    const r = rows?._array?.[0];
+    return r ? toTx(r) : null;
+  },
+
   getSyncState(): { lastSyncTs: number; totalProcessed: number } {
     const { rows } = getDb().execute(`SELECT * FROM sync_state WHERE id=1`);
     const r = rows?._array?.[0];

@@ -117,6 +117,30 @@ export const TransactionRepository = {
     return r ? toTx(r) : null;
   },
 
+  getMonthlyTotals(months: number = 6): { month: string; spend: number; income: number }[] {
+    const result: { month: string; spend: number; income: number }[] = [];
+    const now = new Date();
+    for (let i = months - 1; i >= 0; i--) {
+      const y = new Date(now.getFullYear(), now.getMonth() - i, 1).getFullYear();
+      const m = new Date(now.getFullYear(), now.getMonth() - i, 1).getMonth();
+      const start = new Date(y, m, 1).getTime();
+      const end = new Date(y, m + 1, 0, 23, 59, 59, 999).getTime();
+      const { rows } = getDb().execute(
+        `SELECT type, SUM(amount) as total FROM transactions
+         WHERE sms_date >= ? AND sms_date <= ? GROUP BY type`,
+        [start, end],
+      );
+      let spend = 0, income = 0;
+      for (const r of rows?._array ?? []) {
+        if (r.type === 'DEBIT') spend = r.total ?? 0;
+        else if (r.type === 'CREDIT') income = r.total ?? 0;
+      }
+      const label = new Date(y, m).toLocaleDateString('en', { month: 'short' });
+      result.push({ month: label, spend, income });
+    }
+    return result;
+  },
+
   getSyncState(): { lastSyncTs: number; totalProcessed: number } {
     const { rows } = getDb().execute(`SELECT * FROM sync_state WHERE id=1`);
     const r = rows?._array?.[0];

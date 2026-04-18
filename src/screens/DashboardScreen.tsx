@@ -10,6 +10,8 @@ import LinearGradient from 'react-native-linear-gradient';
 import Svg, { RadialGradient, Stop, Circle } from 'react-native-svg';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
+import InsightsChart from '../components/InsightsChart';
+
 import { useStore } from '../store';
 import { TransactionRepository } from '../database/TransactionRepository';
 import { SmsOrchestrator } from '../services/SmsOrchestrator';
@@ -50,6 +52,7 @@ interface Metrics {
   diningThisMonth: number;
   diningPrevMonth: number;
   latestSubscription: Transaction | null;
+  monthlyTrend: { month: string; spend: number; income: number }[];
 }
 
 const emptyMetrics: Metrics = {
@@ -57,6 +60,7 @@ const emptyMetrics: Metrics = {
   allTimeSpend: 0, allTimeIncome: 0,
   diningThisMonth: 0, diningPrevMonth: 0,
   latestSubscription: null,
+  monthlyTrend: [],
 };
 
 const CATEGORY_SLOT_COLORS = [
@@ -112,6 +116,7 @@ export default function DashboardScreen() {
 
     const allTime = TransactionRepository.getAllTimeTotals();
     const latestSubscription = TransactionRepository.getLatestByCategory('SUBSCRIPTION');
+    const monthlyTrend = TransactionRepository.getMonthlyTotals(6);
 
     setMetrics({
       monthSpend, monthIncome,
@@ -121,6 +126,7 @@ export default function DashboardScreen() {
       diningThisMonth: thisMonthTotals['FOOD_DINING'] ?? 0,
       diningPrevMonth: prevMonthTotals['FOOD_DINING'] ?? 0,
       latestSubscription,
+      monthlyTrend,
     });
   }
 
@@ -167,19 +173,6 @@ export default function DashboardScreen() {
     .slice(0, 4) as [TxCategory, number][];
 
   const recentTxns = transactions.slice(0, 4);
-  const netSavings = metrics.allTimeIncome - metrics.allTimeSpend;
-  const monthNet = metrics.monthIncome - metrics.monthSpend;
-
-  const hasDiningInsight = metrics.diningPrevMonth > 0 && metrics.diningThisMonth > 0;
-  const diningDelta = hasDiningInsight
-    ? ((metrics.diningThisMonth - metrics.diningPrevMonth) / metrics.diningPrevMonth) * 100
-    : 0;
-  const diningLower = diningDelta < 0;
-  const diningDiff = Math.abs(metrics.diningThisMonth - metrics.diningPrevMonth);
-
-  const monthNetPct = metrics.allTimeIncome > 0
-    ? ((monthNet / metrics.allTimeIncome) * 100).toFixed(1)
-    : '0.0';
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
@@ -257,66 +250,8 @@ export default function DashboardScreen() {
           </LinearGradient>
         </View>
 
-        {/* ── Bento Grid: Smart Insight + Savings ── */}
-        <View style={s.bentoGrid}>
-          {/* Smart Insight Card */}
-          <View style={s.insightCard}>
-            <View style={s.insightHeader}>
-              <View style={s.insightIconWrap}>
-                <Icon name="lightbulb-outline" size={18} color={colors.onTertiaryContainer} />
-              </View>
-              <Text style={s.insightEyebrow}>SMART INSIGHT</Text>
-            </View>
-            {hasDiningInsight ? (
-              <>
-                <Text style={s.insightTitle}>
-                  Your dining expenses are{' '}
-                  <Text style={{ color: diningLower ? colors.tertiary : colors.error }}>
-                    {Math.abs(diningDelta).toFixed(0)}% {diningLower ? 'lower' : 'higher'}
-                  </Text>{' '}
-                  this month.
-                </Text>
-                <Text style={s.insightBody}>
-                  {diningLower ? 'Excellent work!' : 'Worth a look.'} You{diningLower ? "'ve" : ''}{' '}
-                  {diningLower ? 'saved' : 'spent'}{' '}
-                  {formatAmount(diningDiff, currency)} compared to last month.
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text style={s.insightTitle}>Keep tracking to unlock insights.</Text>
-                <Text style={s.insightBody}>
-                  Once you have dining data from two consecutive months, Somus will show you how your habits are changing.
-                </Text>
-              </>
-            )}
-            <View style={s.insightBarBg}>
-              <View
-                style={[
-                  s.insightBarFill,
-                  {
-                    width: `${Math.min(100, Math.abs(diningDelta) || 0)}%`,
-                    backgroundColor: diningLower ? colors.tertiary : colors.error,
-                  },
-                ]}
-              />
-            </View>
-          </View>
-
-          {/* Savings Mini-Card */}
-          <View style={s.savingsCard}>
-            <Icon name="piggy-bank-outline" size={40} color={colors.onSecondaryContainer} />
-            <View style={s.savingsTextBlock}>
-              <Text style={s.savingsLabel}>TOTAL SAVINGS</Text>
-              <Text style={s.savingsAmount}>{formatAmount(netSavings, currency)}</Text>
-            </View>
-            <View style={s.savingsChip}>
-              <Text style={s.savingsChipText}>
-                {monthNet >= 0 ? '+' : ''}{monthNetPct}% this month
-              </Text>
-            </View>
-          </View>
-        </View>
+        {/* ── Insights Chart ── */}
+        <InsightsChart data={metrics.monthlyTrend} currency={currency} />
 
         {/* ── Categories + Recent Activity ── */}
         <View style={s.twoColGrid}>
@@ -703,97 +638,6 @@ const s = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     textAlign: 'center',
-  },
-
-  // ── Bento grid ──
-  bentoGrid: {
-    gap: 24, // gap-6
-    marginBottom: 32,
-  },
-  insightCard: {
-    backgroundColor: colors.surfaceContainer, // bg-surface-container
-    borderRadius: 40, // very soft card boundaries
-    padding: 32, // very soft padding
-  },
-  insightHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12, // slightly more gap
-    marginBottom: 16, // mb-4
-  },
-  insightIconWrap: {
-    width: 32, height: 32, // w-8 h-8
-    borderRadius: 16, // rounded-full
-    backgroundColor: colors.tertiaryContainer, // bg-tertiary-container
-    alignItems: 'center', justifyContent: 'center',
-  },
-  insightEyebrow: {
-    fontFamily: font.label,
-    fontSize: 12, // text-xs
-    fontWeight: '700', // font-bold
-    color: colors.tertiary, // text-tertiary
-    letterSpacing: 2, // tracking-widest
-    textTransform: 'uppercase', // uppercase
-  },
-  insightTitle: {
-    fontFamily: font.headline,
-    fontSize: 24, // text-2xl
-    fontWeight: '700', // font-bold
-    color: colors.onBackground, // text-on-background
-    lineHeight: 32, // proper line height
-  },
-  insightBody: {
-    fontFamily: font.body,
-    fontSize: 15, // text-sm -> slightly bigger (M3 Body Medium)
-    color: colors.onSurfaceVariant, // text-on-surface-variant
-    marginTop: 12, // mt-3
-    lineHeight: 24, // leading-relaxed
-  },
-  insightBarBg: {
-    height: 8, // h-2
-    backgroundColor: colors.surfaceContainerHighest,
-    borderRadius: radii.full,
-    overflow: 'hidden',
-    marginTop: 24, // mt-6
-  },
-  insightBarFill: { height: '100%', backgroundColor: colors.tertiary, borderRadius: radii.full },
-
-  savingsCard: {
-    backgroundColor: colors.secondaryContainer, // bg-secondary-container
-    borderRadius: 40, // even softer radii
-    padding: 32, // larger padding
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-  },
-  savingsTextBlock: { alignItems: 'center' },
-  savingsLabel: {
-    fontFamily: font.label,
-    fontSize: 12, // text-xs
-    fontWeight: '700', // font-bold
-    color: alpha(colors.onSecondaryContainer, 0.70), // text-on-secondary-container/70
-    letterSpacing: 2, // tracking-widest
-    textTransform: 'uppercase', // uppercase
-    marginTop: 0,
-  },
-  savingsAmount: {
-    fontFamily: font.headline,
-    fontSize: 32, // text-3xl -> bumped to 32sp M3 Headline Medium
-    fontWeight: '700', // font-bold
-    color: colors.onSecondaryContainer,
-    marginTop: 4, // mt-1
-  },
-  savingsChip: {
-    backgroundColor: alpha(colors.onSecondary, 0.50), // bg-on-secondary/50
-    paddingHorizontal: 12, // px-3
-    paddingVertical: 4, // py-1
-    borderRadius: radii.full,
-  },
-  savingsChipText: {
-    fontFamily: font.label,
-    fontSize: 11, // text-[10px] -> 11sp
-    fontWeight: '700', // font-bold
-    color: colors.onSecondaryFixedVariant, // text-on-secondary-fixed-variant
   },
 
   // ── Categories + Activity ──

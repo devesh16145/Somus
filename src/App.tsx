@@ -19,6 +19,9 @@ import TransactionDetailScreen from './screens/TransactionDetailScreen';
 import SubscriptionsScreen from './screens/SubscriptionsScreen';
 import GoalsScreen from './screens/GoalsScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import AiManagementScreen from './screens/AiManagementScreen';
+import SmsPermissionsScreen from './screens/SmsPermissionsScreen';
+import NotificationsScreen from './screens/NotificationsScreen';
 import { AddTransactionScreen, AddSubscriptionScreen, AddGoalScreen } from './components/ActionViews';
 
 export type RootStackParams = {
@@ -28,6 +31,9 @@ export type RootStackParams = {
   AddTransaction: undefined;
   AddSubscription: undefined;
   AddGoal: undefined;
+  AiManagement: undefined;
+  SmsPermissions: undefined;
+  Notifications: undefined;
 };
 
 export type TabParams = {
@@ -183,6 +189,9 @@ export default function App() {
           <Stack.Screen name="AddTransaction" component={AddTransactionScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="AddSubscription" component={AddSubscriptionScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="AddGoal" component={AddGoalScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="AiManagement" component={AiManagementScreen} />
+          <Stack.Screen name="SmsPermissions" component={SmsPermissionsScreen} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

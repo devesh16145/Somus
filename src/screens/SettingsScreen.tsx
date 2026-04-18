@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useStore } from '../store';
 import { LeapModule, MODELS } from '../modules/LeapModule';
@@ -8,6 +10,7 @@ import { SmsOrchestrator } from '../services/SmsOrchestrator';
 import { TransactionRepository } from '../database/TransactionRepository';
 import { themes, accent, accentInk, font, alpha, ThemeMode } from '../theme';
 import LiquidIcon from '../components/LiquidIcons';
+import { RootStackParams } from '../App';
 
 type Period = '7d' | '30d' | '90d' | '180d' | 'custom';
 const PERIODS: { label: string; value: Period; days: number }[] = [
@@ -21,11 +24,13 @@ const PERIODS: { label: string; value: Period; days: number }[] = [
 type ImportPhase = 'idle' | 'counting' | 'reading' | 'processing' | 'done' | 'error';
 
 export default function SettingsScreen() {
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const { modelLoaded, setTransactions, themeMode } = useStore();
   const t = themes[themeMode];
   const aink = accentInk(themeMode);
 
   const [selectedPeriod, setSelectedPeriod] = useState<Period>('30d');
+  const [customDays, setCustomDays] = useState(60);
   const [txCount, setTxCount] = useState(0);
 
   // Import state
@@ -48,7 +53,7 @@ export default function SettingsScreen() {
     const periodObj = PERIODS.find(p => p.value === selectedPeriod)!;
     
     // Quick custom date fallback (mocked logic for UI)
-    const days = selectedPeriod === 'custom' ? 365 : periodObj.days;
+    const days = selectedPeriod === 'custom' ? customDays : periodObj.days;
 
     const end = Date.now();
     const start = end - days * 86400000;
@@ -117,7 +122,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* Local AI Management */}
-        <View style={s.card}>
+        <TouchableOpacity style={s.card} onPress={() => nav.navigate('AiManagement')} activeOpacity={0.7}>
            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
               <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: alpha(aink, 0.15), alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
                  <LiquidIcon name="chip" size={20} color={aink} />
@@ -144,7 +149,7 @@ export default function SettingsScreen() {
                  </View>
               </View>
            </View>
-        </View>
+        </TouchableOpacity>
 
         {/* SMS Import Feature */}
         <View style={s.card}>
@@ -173,11 +178,21 @@ export default function SettingsScreen() {
               
               {selectedPeriod === 'custom' && (
                 <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-                  <View style={{ flex: 1, backgroundColor: t.chipBg, padding: 12, borderRadius: 12 }}>
-                    <Text style={{ fontFamily: font.mono, fontSize: 10, color: t.mute, marginBottom: 4 }}>From</Text>
-                    <Text style={{ fontFamily: font.uiBold, fontSize: 13, color: t.ink }}>Jan 1, 2024</Text>
+                  <View style={{ flex: 1, backgroundColor: t.chipBg, padding: 12, borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View>
+                      <Text style={{ fontFamily: font.mono, fontSize: 10, color: t.mute, marginBottom: 4 }}>Period</Text>
+                      <Text style={{ fontFamily: font.uiBold, fontSize: 13, color: t.ink }}>{customDays} days</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 4 }}>
+                      <TouchableOpacity onPress={() => setCustomDays(Math.max(1, customDays - 1))} style={{ padding: 4 }}>
+                         <LiquidIcon name="chevron" size={16} color={t.inkDim} style={{ transform: [{ rotate: '180deg' }] }} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => setCustomDays(customDays + 1)} style={{ padding: 4 }}>
+                         <LiquidIcon name="chevron" size={16} color={t.inkDim} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                  <View style={{ flex: 1, backgroundColor: t.chipBg, padding: 12, borderRadius: 12 }}>
+                  <View style={{ flex: 1, backgroundColor: t.chipBg, padding: 12, borderRadius: 12, justifyContent: 'center' }}>
                     <Text style={{ fontFamily: font.mono, fontSize: 10, color: t.mute, marginBottom: 4 }}>To</Text>
                     <Text style={{ fontFamily: font.uiBold, fontSize: 13, color: t.ink }}>Today</Text>
                   </View>
@@ -212,24 +227,8 @@ export default function SettingsScreen() {
 
         {/* Global Navigation List */}
         <View style={[s.card, { paddingVertical: 8, paddingHorizontal: 0 }]}>
-           <SettingRow t={t} icon="shield" name="Account & Security" sub="Biometric lock, encryption keys" />
-           <SettingRow t={t} icon="dots" name="SMS Permissions & Sync" sub="Private scraping, automated tracking" />
-           <SettingRow t={t} icon="disc" name="Appearance" sub="Light mode, tonal palette" badge="LIGHT" badgeColor={aink} />
-           <SettingRow t={t} icon="bag" name="Notifications" sub="Spending alerts, vault updates" />
-           <SettingRow t={t} icon="fork" name="Help & Support" sub="Documentation, Indigo Support" last />
-        </View>
-
-        {/* Action Buttons */}
-        <View style={{ marginHorizontal: 20, marginTop: 10, gap: 14 }}>
-           <TouchableOpacity style={{ backgroundColor: aink, borderRadius: 100, paddingVertical: 18, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 10 }}>
-              <LiquidIcon name="shield" size={18} color={t.bg} />
-              <Text style={{ fontFamily: font.display, fontSize: 16, fontWeight: '600', color: t.bg }}>Lock Vault Now</Text>
-           </TouchableOpacity>
-
-           <TouchableOpacity style={{ backgroundColor: t.surface, borderWidth: 1, borderColor: t.rule, borderRadius: 100, paddingVertical: 18, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 10 }}>
-              <LiquidIcon name="arrowRt" size={18} color="#ef4444" style={{ transform: [{ rotate: '180deg' }] }} />
-              <Text style={{ fontFamily: font.display, fontSize: 16, fontWeight: '600', color: "#ef4444" }}>Sign Out</Text>
-           </TouchableOpacity>
+           <SettingRow t={t} icon="dots" name="SMS Permissions & Sync" sub="Private scraping, automated tracking" onPress={() => nav.navigate('SmsPermissions')} />
+           <SettingRow t={t} icon="bag" name="Notifications" sub="Spending alerts, vault updates" last onPress={() => nav.navigate('Notifications')} />
         </View>
 
         {/* Footer */}
@@ -243,9 +242,9 @@ export default function SettingsScreen() {
   );
 }
 
-function SettingRow({ t, icon, name, sub, badge, badgeColor, last = false }: any) {
+function SettingRow({ t, icon, name, sub, badge, badgeColor, last = false, onPress }: any) {
   return (
-    <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 20, borderBottomWidth: last ? 0 : 1, borderBottomColor: t.rule }}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 20, borderBottomWidth: last ? 0 : 1, borderBottomColor: t.rule }}>
       <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: t.chipBg, alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
         <LiquidIcon name={icon} size={16} color={t.inkDim} />
       </View>

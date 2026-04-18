@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Animated,
-  PermissionsAndroid, Platform, ScrollView, ActivityIndicator,
+  PermissionsAndroid, ScrollView, ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -10,14 +10,17 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LeapModule, MODELS } from '../modules/LeapModule';
 import { useStore } from '../store';
 import { RootStackParams } from '../App';
+import { themes, accent, accentInk, font, alpha, ThemeMode } from '../theme';
+import LiquidIcon from '../components/LiquidIcons';
 
 type Nav = NativeStackNavigationProp<RootStackParams, 'Onboarding'>;
-
 type Step = 'welcome' | 'sms_permission' | 'model_download' | 'done';
 
 export default function OnboardingScreen() {
   const nav = useNavigation<Nav>();
-  const { setModelLoaded, setDownloading, setDownloadProgress, modelLoaded } = useStore();
+  const { setModelLoaded, setDownloading, setDownloadProgress, themeMode } = useStore();
+  const t = themes[themeMode];
+  const aink = accentInk(themeMode);
 
   const [step, setStep]               = useState<Step>('welcome');
   const [smsGranted, setSmsGranted]   = useState(false);
@@ -31,343 +34,268 @@ export default function OnboardingScreen() {
     Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
   }, [step]);
 
-  // If model already loaded from a previous session, skip straight to main
   useEffect(() => {
     LeapModule.isModelLoaded().then((loaded) => {
-      if (loaded) {
-        setModelLoaded(true);
-        nav.replace('Main');
-      }
+      if (loaded) { setModelLoaded(true); nav.replace('Main'); }
     });
   }, []);
 
-  // Subscribe to download progress
   useEffect(() => {
     const sub = LeapModule.onModelProgress(({ progress: p }) => {
-      setProgress(p);
-      setDownloadProgress(p);
+      setProgress(p); setDownloadProgress(p);
     });
     return () => sub.remove();
   }, []);
 
-  // ── Handlers ──────────────────────────────────────────────────
-
   async function requestSmsPermission() {
     setError(null);
     try {
-      const result = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.READ_SMS,
-      );
+      const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_SMS);
       const granted = result === 'granted';
-
       setSmsGranted(granted);
-      if (granted) {
-        fadeAnim.setValue(0);
-        setStep('model_download');
-      } else {
-        setError('SMS access is required to automatically track your transactions.');
-      }
-    } catch (e) {
-      setError('Permission request failed. Please try again.');
-    }
+      if (granted) { fadeAnim.setValue(0); setStep('model_download'); }
+      else setError('SMS access is required to automatically track your transactions.');
+    } catch (e) { setError('Permission request failed. Please try again.'); }
   }
 
   async function downloadModel() {
-    setError(null);
-    setLocalDL(true);
-    setDownloading(true);
-    setProgress(0);
+    setError(null); setLocalDL(true); setDownloading(true); setProgress(0);
     try {
       const model = MODELS.DEFAULT;
       await LeapModule.downloadAndLoadModel(model.slug, model.quant);
-      // Model loaded — force progress to 100% and transition
-      setProgress(1);
-      setDownloadProgress(1);
-      setModelLoaded(true);
-      setLocalDL(false);
-      setDownloading(false);
-      fadeAnim.setValue(0);
-      setStep('done');
+      setProgress(1); setDownloadProgress(1); setModelLoaded(true);
+      setLocalDL(false); setDownloading(false);
+      fadeAnim.setValue(0); setStep('done');
     } catch (e: any) {
-      setError(e?.message ?? 'Download failed. Check your internet connection and try again.');
-      setLocalDL(false);
-      setDownloading(false);
+      setError(e?.message ?? 'Download failed. Check your internet connection.');
+      setLocalDL(false); setDownloading(false);
     }
   }
 
-  function goToApp() {
-    nav.replace('Main');
-  }
-
-  // ── Renders ───────────────────────────────────────────────────
+  const s = getStyles(t, aink, themeMode);
 
   return (
-    <SafeAreaView style={s.container}>
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }} edges={['top', 'bottom']}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
+          {step === 'welcome' && (
+            <View style={s.stepWrap}>
+              <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', backgroundColor: alpha(accent.v, 0.1), paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100, marginBottom: 24, borderWidth: 1, borderColor: alpha(accent.v, 0.2) }}>
+                <LiquidIcon name="shield" size={14} color={aink} />
+                <Text style={{ fontFamily: font.monoBold, fontSize: 11, color: aink, marginLeft: 6, letterSpacing: 0.5 }}>Privacy First</Text>
+              </View>
+              
+              <Text style={[s.title, { letterSpacing: -1.0, fontSize: 38 }]}>Your data is yours.</Text>
+              <Text style={[s.descSm, { marginTop: 4, marginBottom: 36, lineHeight: 24 }]}>
+                Somus secures your SMS financial alerts with military-grade local encryption. We never see your data—because we don't need to.
+              </Text>
+              
+              <View style={{ gap: 24, marginBottom: 40 }}>
+                <FeatureRow t={t} icon="chip" title="Zero-Cloud Architecture" sub="All transaction parsing happens 100% on your device. Your data never touches a server." />
+                <FeatureRow t={t} icon="shield" title="End-to-End Privacy" sub="Automated categorizing without human eyes. Private by design, not just by policy." />
+                <FeatureRow t={t} icon="check" title="Biometric Armor" sub="Locked behind your FaceID or Fingerprint. Even if your phone is unlocked, your vault stays closed." />
+              </View>
 
-          {step === 'welcome' && <WelcomeStep onNext={() => { fadeAnim.setValue(0); setStep('sms_permission'); }} />}
+              <TouchableOpacity style={s.btn} onPress={() => { fadeAnim.setValue(0); setStep('sms_permission'); }}>
+                <Text style={s.btnText}>Secure My Vault &#x2192;</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={{ alignSelf: 'center', marginTop: 20, marginBottom: 50 }}>
+                <Text style={{ fontFamily: font.uiBold, fontSize: 14, color: aink }}>Learn about security</Text>
+              </TouchableOpacity>
+
+              <View style={{ gap: 12 }}>
+                <CardIconRow t={t} aink={aink} icon="home" title="Local Storage" desc="Encrypted SQLite database living exclusively in your device's secure enclave." />
+                <CardIconRow t={t} aink={aink} icon="dots" title="No Syncing" desc="We intentionally removed cloud sync to eliminate the primary vector for data breaches." />
+                <CardIconRow t={t} aink={aink} icon="chip" title="Open Logic" desc="Our parsing rules are transparent. You see exactly what the app sees and how it sorts." />
+              </View>
+
+              <View style={{ alignItems: 'center', marginTop: 60, marginBottom: 20 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#8b949e' }} />
+                  <Text style={{ fontFamily: font.mono, fontSize: 11, color: t.mute }}>Encrypted with AES-256</Text>
+                </View>
+                <Text style={{ fontFamily: font.mono, fontSize: 10, color: t.mute }}>© 2026 Somus. Your privacy is our architecture.</Text>
+              </View>
+            </View>
+          )}
 
           {step === 'sms_permission' && (
-            <PermissionStep
-              onGrant={requestSmsPermission}
-              error={error}
-            />
+            <View style={s.stepWrap}>
+              <Text style={s.stepTrack}>STEP 01 · 03</Text>
+              <Text style={s.titleMd}>Allow SMS access</Text>
+              <Text style={s.descSm}>
+                Somus reads your inbox to detect bank messages and categorise spending automatically.
+                Processed entirely on-device.
+              </Text>
+
+              <View style={s.card}>
+                <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: t.bg, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                  <LiquidIcon name="dots" size={24} color={t.ink} />
+                </View>
+                <Text style={{ fontFamily: font.monoBold, fontSize: 13, color: t.ink, marginBottom: 4 }}>READ_SMS</Text>
+                <Text style={{ fontFamily: font.mono, fontSize: 12, color: t.mute }}>Required to scan incoming and legacy bank receipts.</Text>
+              </View>
+
+              {error && <Text style={s.error}>{error}</Text>}
+
+              <View style={{ flex: 1 }} />
+              <TouchableOpacity style={s.btn} onPress={requestSmsPermission}>
+                <Text style={s.btnText}>Grant Access</Text>
+              </TouchableOpacity>
+            </View>
           )}
 
           {step === 'model_download' && (
-            <ModelDownloadStep
-              downloading={downloading}
-              progress={progress}
-              error={error}
-              onDownload={downloadModel}
-            />
+            <View style={s.stepWrap}>
+              <Text style={s.stepTrack}>STEP 02 · 03</Text>
+
+              <Text style={s.titleMd}>Select AI Engine</Text>
+              <Text style={[s.descSm, { marginBottom: 28 }]}>
+                Choose the foundation model that powers your vault. Processing happens entirely on-device, preserving full privacy.
+              </Text>
+
+              <View style={{ gap: 14 }}>
+                <TouchableOpacity style={[s.card, { marginTop: 0, padding: 18, borderColor: accent.v, backgroundColor: alpha(accent.v, 0.05) }]} activeOpacity={0.8}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <Text style={{ fontFamily: font.uiBold, fontSize: 16, color: t.ink }}>LFM 1.2B Instruct</Text>
+                    <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: accent.v, alignItems: 'center', justifyContent: 'center' }}>
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.bg }} />
+                    </View>
+                  </View>
+                  <Text style={{ fontFamily: font.ui, fontSize: 13, color: t.mute, lineHeight: 18, marginBottom: 12 }}>Balanced foundation model optimized for mobile financial parsing and stable device thermals.</Text>
+                  <View style={{ flexDirection: 'row', gap: 6 }}>
+                    <View style={{ paddingHorizontal: 8, paddingVertical: 4, backgroundColor: alpha(t.ink, 0.05), borderRadius: 6 }}><Text style={{ fontFamily: font.monoBold, fontSize: 9, color: t.inkDim }}>~1.2 GB</Text></View>
+                    <View style={{ paddingHorizontal: 8, paddingVertical: 4, backgroundColor: alpha(t.ink, 0.05), borderRadius: 6 }}><Text style={{ fontFamily: font.monoBold, fontSize: 9, color: t.inkDim }}>DEFAULT</Text></View>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={[s.card, { marginTop: 0, padding: 18 }]} activeOpacity={0.8}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <Text style={{ fontFamily: font.uiBold, fontSize: 16, color: t.ink }}>Ternary Bonsai 1.7B</Text>
+                    <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: t.rule }} />
+                  </View>
+                  <Text style={{ fontFamily: font.ui, fontSize: 13, color: t.mute, lineHeight: 18, marginBottom: 12 }}>Experimental architecture. Slower latency but superior zero-shot categorization logic.</Text>
+                  <View style={{ flexDirection: 'row', gap: 6 }}>
+                    <View style={{ paddingHorizontal: 8, paddingVertical: 4, backgroundColor: alpha(t.ink, 0.05), borderRadius: 6 }}><Text style={{ fontFamily: font.monoBold, fontSize: 9, color: t.inkDim }}>~1.7 GB</Text></View>
+                  </View>
+                </TouchableOpacity>
+
+                <View style={[s.card, { marginTop: 0, padding: 18, opacity: 0.6 }]}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={{ fontFamily: font.uiBold, fontSize: 16, color: t.ink }}>LFM 450M VL</Text>
+                      <View style={{ paddingHorizontal: 6, paddingVertical: 3, backgroundColor: alpha(t.ink, 0.1), borderRadius: 6 }}>
+                        <Text style={{ fontFamily: font.monoBold, fontSize: 9, color: t.inkDim, letterSpacing: 0.5 }}>COMING SOON</Text>
+                      </View>
+                    </View>
+                    <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: t.rule }} />
+                  </View>
+                  <Text style={{ fontFamily: font.ui, fontSize: 13, color: t.mute, lineHeight: 18 }}>Vision-Language model enabling physical camera receipt scanning functionality.</Text>
+                </View>
+              </View>
+
+              <View style={{ flex: 1, minHeight: 40 }} />
+
+              {downloading ? (
+                <View style={{ marginTop: 22 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text style={{ fontFamily: font.mono, fontSize: 11, color: t.inkDim }}>downloading...</Text>
+                    <Text style={{ fontFamily: font.monoBold, fontSize: 11, color: aink }}>
+                      {Math.round(progress * 100)}% · {Math.round(progress * MODELS.DEFAULT.sizeMb)} / {MODELS.DEFAULT.sizeMb} MB
+                    </Text>
+                  </View>
+                  <View style={{ height: 6, backgroundColor: t.chipBg, borderRadius: 3, overflow: 'hidden' }}>
+                    <View style={{ width: `${Math.max(5, progress * 100)}%`, height: '100%', backgroundColor: accent.v, borderRadius: 3, boxShadow: `0 0 12px ${accent.v}` }} />
+                  </View>
+                </View>
+              ) : (
+                <>
+                  {error && <Text style={s.error}>{error}</Text>}
+                  <TouchableOpacity style={s.btn} onPress={downloadModel}>
+                    <Text style={s.btnText}>Download Local Node</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
           )}
 
-          {step === 'done' && <DoneStep onEnter={goToApp} />}
-
+          {step === 'done' && (
+            <View style={[s.stepWrap, { alignItems: 'center', justifyContent: 'center' }]}>
+              <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: alpha(accent.v, 0.22), alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+                <LiquidIcon name="check" size={40} color={aink} strokeWidth={2.5} />
+              </View>
+              <Text style={s.titleMd}>System ready</Text>
+              <Text style={[s.descSm, { textAlign: 'center' }]}>
+                Somus is fully initialized. The AI node is active and running natively on your hardware.
+              </Text>
+              
+              <View style={{ flex: 1 }} />
+              <TouchableOpacity style={s.btn} onPress={() => nav.replace('Main')}>
+                <Text style={s.btnText}>Launch Dashboard</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// ── Step components ───────────────────────────────────────────
-
-function WelcomeStep({ onNext }: { onNext: () => void }) {
+function FeatureRow({ t, icon, title, sub }: any) {
   return (
-    <View style={s.stepContainer}>
-      <View style={s.logoContainer}>
-        <Text style={s.logoText}>S</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+      <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: t.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: t.rule }}>
+        <LiquidIcon name={icon} size={20} color={t.ink} strokeWidth={1.5} />
       </View>
-      <Text style={s.appName}>Somus</Text>
-      <Text style={s.tagline}>Your finances.{'\n'}Completely private.</Text>
-
-      <View style={s.featureList}>
-        <FeatureRow icon="📱" title="Reads your SMS" sub="Automatically catches every transaction" />
-        <FeatureRow icon="🤖" title="AI runs on your phone" sub="No cloud. No servers. No cost." />
-        <FeatureRow icon="🔒" title="Zero data leaves your device" sub="Your money data is yours alone" />
-        <FeatureRow icon="🌍" title="8 languages supported" sub="EN · AR · ZH · FR · DE · JA · KO · ES" />
-      </View>
-
-      <TouchableOpacity style={s.primaryBtn} onPress={onNext} activeOpacity={0.85}>
-        <Text style={s.primaryBtnText}>Get Started</Text>
-      </TouchableOpacity>
-
-      <Text style={s.footNote}>
-        Somus never transmits your SMS or financial data to any server.
-      </Text>
-    </View>
-  );
-}
-
-function PermissionStep({ onGrant, error }: { onGrant: () => void; error: string | null }) {
-  return (
-    <View style={s.stepContainer}>
-      <Text style={s.stepNumber}>01</Text>
-      <Text style={s.stepTitle}>Allow SMS access</Text>
-      <Text style={s.stepDesc}>
-        Somus reads your inbox to detect bank messages and categorise spending automatically.
-        Your messages are processed entirely on-device — never uploaded anywhere.
-      </Text>
-
-      <View style={s.permissionCard}>
-        <Text style={s.permissionIcon}>✉</Text>
-        <Text style={s.permissionName}>READ_SMS</Text>
-        <Text style={s.permissionDesc}>Read incoming and existing SMS messages</Text>
-      </View>
-
-      {error && <Text style={s.errorText}>{error}</Text>}
-
-      <TouchableOpacity style={s.primaryBtn} onPress={onGrant} activeOpacity={0.85}>
-        <Text style={s.primaryBtnText}>Grant SMS Access</Text>
-      </TouchableOpacity>
-
-      <Text style={s.footNote}>
-        Android will show its standard permission dialog. Tap "Allow".
-      </Text>
-    </View>
-  );
-}
-
-function ModelDownloadStep({
-  downloading, progress, error, onDownload,
-}: {
-  downloading: boolean;
-  progress: number;
-  error: string | null;
-  onDownload: () => void;
-}) {
-  const pct = Math.round(progress * 100);
-  const sizeMb = MODELS.DEFAULT.sizeMb;
-
-  return (
-    <View style={s.stepContainer}>
-      <Text style={s.stepNumber}>02</Text>
-      <Text style={s.stepTitle}>Download AI Model</Text>
-      <Text style={s.stepDesc}>
-        Somus uses {MODELS.DEFAULT.slug} — a {sizeMb}MB language model that runs
-        entirely on your phone. This is a one-time download. After this, Somus works offline forever.
-      </Text>
-
-      <View style={s.modelCard}>
-        <View style={s.modelCardRow}>
-          <Text style={s.modelLabel}>Model</Text>
-          <Text style={s.modelValue}>{MODELS.DEFAULT.slug}</Text>
-        </View>
-        <View style={s.modelCardRow}>
-          <Text style={s.modelLabel}>Quantization</Text>
-          <Text style={s.modelValue}>{MODELS.DEFAULT.quant}</Text>
-        </View>
-        <View style={s.modelCardRow}>
-          <Text style={s.modelLabel}>Download size</Text>
-          <Text style={s.modelValue}>~{sizeMb} MB</Text>
-        </View>
-        <View style={s.modelCardRow}>
-          <Text style={s.modelLabel}>RAM usage</Text>
-          <Text style={s.modelValue}>~1.1 GB</Text>
-        </View>
-        <View style={[s.modelCardRow, { borderBottomWidth: 0 }]}>
-          <Text style={s.modelLabel}>Cloud calls</Text>
-          <Text style={[s.modelValue, { color: '#00FF94' }]}>Zero</Text>
-        </View>
-      </View>
-
-      {downloading && (
-        <View style={s.progressContainer}>
-          <View style={s.progressBar}>
-            <View style={[s.progressFill, { width: `${Math.max(pct, 5)}%` }]} />
-          </View>
-          <Text style={s.progressText}>
-            {pct >= 90
-              ? 'Loading AI model into memory...'
-              : pct > 0
-                ? `${pct}%  ·  ${Math.round((pct / 100) * sizeMb)} MB of ${sizeMb} MB`
-                : 'Preparing download...'}
-          </Text>
-          <ActivityIndicator color="#00FF94" style={{ marginTop: 8 }} />
-        </View>
-      )}
-
-      {error && <Text style={s.errorText}>{error}</Text>}
-
-      {!downloading && (
-        <TouchableOpacity style={s.primaryBtn} onPress={onDownload} activeOpacity={0.85}>
-          <Text style={s.primaryBtnText}>Download Model  ({sizeMb} MB)</Text>
-        </TouchableOpacity>
-      )}
-
-      <Text style={s.footNote}>
-        Connect to Wi-Fi before downloading. The model is stored locally and never re-downloaded.
-      </Text>
-    </View>
-  );
-}
-
-function DoneStep({ onEnter }: { onEnter: () => void }) {
-  return (
-    <View style={s.stepContainer}>
-      <View style={s.doneCircle}>
-        <Text style={s.doneCheck}>✓</Text>
-      </View>
-      <Text style={s.stepTitle}>You're all set</Text>
-      <Text style={s.stepDesc}>
-        Somus is ready. Your AI model is loaded and running entirely on your device.
-        Let's import your recent transactions.
-      </Text>
-
-      <TouchableOpacity style={s.primaryBtn} onPress={onEnter} activeOpacity={0.85}>
-        <Text style={s.primaryBtnText}>Open Somus</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-function FeatureRow({ icon, title, sub }: { icon: string; title: string; sub: string }) {
-  return (
-    <View style={s.featureRow}>
-      <Text style={s.featureIcon}>{icon}</Text>
       <View style={{ flex: 1 }}>
-        <Text style={s.featureTitle}>{title}</Text>
-        <Text style={s.featureSub}>{sub}</Text>
+        <Text style={{ fontFamily: font.uiBold, fontSize: 15, color: t.ink, marginBottom: 2 }}>{title}</Text>
+        <Text style={{ fontFamily: font.mono, fontSize: 11, color: t.mute }}>{sub}</Text>
       </View>
     </View>
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────
+function CardIconRow({ t, aink, icon, title, desc }: any) {
+  return (
+    <View style={{ backgroundColor: t.surface, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: t.rule }}>
+      <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: alpha(aink, 0.15), alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+        <LiquidIcon name={icon} size={16} color={aink} />
+      </View>
+      <Text style={{ fontFamily: font.uiBold, fontSize: 14, color: t.ink, marginBottom: 6 }}>{title}</Text>
+      <Text style={{ fontFamily: font.ui, fontSize: 13, color: t.mute, lineHeight: 20 }}>{desc}</Text>
+    </View>
+  );
+}
 
-const s = StyleSheet.create({
-  container:      { flex: 1, backgroundColor: '#0D0D0D' },
-  scroll:         { flexGrow: 1, padding: 24 },
-  stepContainer:  { flex: 1, paddingTop: 24 },
+function InfoRow({ t, label, value, valueColor, last }: any) {
+  return (
+    <View style={[{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }, !last && { borderBottomWidth: 1, borderBottomColor: t.rule }]}>
+      <Text style={{ fontFamily: font.mono, fontSize: 12, color: t.mute }}>{label}</Text>
+      <Text style={{ fontFamily: font.monoBold, fontSize: 12, color: valueColor || t.ink }}>{value}</Text>
+    </View>
+  );
+}
 
-  logoContainer:  {
-    width: 72, height: 72, borderRadius: 20,
-    backgroundColor: '#00FF94', alignItems: 'center',
-    justifyContent: 'center', marginBottom: 20,
-  },
-  logoText:       { fontSize: 36, fontWeight: '700', color: '#0D0D0D' },
-  appName:        { fontSize: 32, fontWeight: '700', color: '#FFFFFF', marginBottom: 8 },
-  tagline:        { fontSize: 22, color: '#888888', lineHeight: 32, marginBottom: 40 },
+function getStyles(t: any, aink: string, mode: ThemeMode) {
+  return StyleSheet.create({
+    stepWrap: { flex: 1, paddingTop: 12 },
+    stepTrack: { fontFamily: font.monoBold, fontSize: 10, color: aink, letterSpacing: 1.5, marginBottom: 24 },
+    
+    title: { fontFamily: font.display, fontSize: 44, fontWeight: '500', letterSpacing: -1.5, lineHeight: 48, color: t.ink, marginBottom: 12 },
+    titleMd: { fontFamily: font.display, fontSize: 32, fontWeight: '500', letterSpacing: -1, color: t.ink, marginBottom: 12 },
+    desc: { fontFamily: font.displayItalic, fontSize: 24, color: t.mute, lineHeight: 32 },
+    descSm: { fontFamily: font.ui, fontSize: 14, color: t.inkDim, lineHeight: 22, maxWidth: 320 },
 
-  featureList:    { gap: 20, marginBottom: 40 },
-  featureRow:     { flexDirection: 'row', alignItems: 'flex-start', gap: 16 },
-  featureIcon:    { fontSize: 24, width: 32 },
-  featureTitle:   { fontSize: 15, fontWeight: '600', color: '#FFFFFF', marginBottom: 2 },
-  featureSub:     { fontSize: 13, color: '#666666' },
+    blob: { alignSelf: 'flex-start', width: 92, height: 92, borderRadius: 28, backgroundColor: accent.v, alignItems: 'center', justifyContent: 'center', marginBottom: 24, boxShadow: `0 0 50px ${alpha(accent.v, 0.5)}` },
+    blobText: { fontFamily: font.display, fontSize: 50, color: '#000', letterSpacing: -2, paddingBottom: 8 },
+    blobBadge: { position: 'absolute', top: -10, right: -10, width: 30, height: 30, borderRadius: 15, backgroundColor: t.surface, borderWidth: 2, borderColor: t.bg, alignItems: 'center', justifyContent: 'center' },
 
-  stepNumber:     { fontSize: 13, color: '#00FF94', fontWeight: '700',
-                    letterSpacing: 2, marginBottom: 12 },
-  stepTitle:      { fontSize: 28, fontWeight: '700', color: '#FFFFFF', marginBottom: 16 },
-  stepDesc:       { fontSize: 15, color: '#888888', lineHeight: 24, marginBottom: 32 },
+    card: { backgroundColor: t.surface, borderRadius: 20, padding: 16, borderWidth: 1, borderColor: t.rule, marginTop: 12 },
+    
+    btn: { width: '100%', paddingVertical: 16, backgroundColor: t.ink === '#f2f2f5' ? '#f2f2f5' : t.ink, borderRadius: 16, alignItems: 'center', marginTop: 24 },
+    btnText: { fontFamily: font.display, fontSize: 15, fontWeight: '600', color: t.bg },
 
-  permissionCard: {
-    backgroundColor: '#141414', borderRadius: 12,
-    padding: 16, marginBottom: 12, gap: 4,
-  },
-  permissionIcon: { fontSize: 20, marginBottom: 4 },
-  permissionName: { fontSize: 13, fontWeight: '700', color: '#FFFFFF',
-                    fontFamily: Platform.OS === 'android' ? 'monospace' : 'Menlo' },
-  permissionDesc: { fontSize: 13, color: '#666666' },
-
-  modelCard: {
-    backgroundColor: '#141414', borderRadius: 12,
-    padding: 4, marginBottom: 24,
-  },
-  modelCardRow: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#222222',
-  },
-  modelLabel:  { fontSize: 14, color: '#666666' },
-  modelValue:  { fontSize: 14, color: '#FFFFFF', fontWeight: '500' },
-
-  progressContainer: { marginBottom: 24 },
-  progressBar:  {
-    height: 4, backgroundColor: '#222222', borderRadius: 2,
-    overflow: 'hidden', marginBottom: 10,
-  },
-  progressFill: { height: '100%', backgroundColor: '#00FF94', borderRadius: 2 },
-  progressText: { fontSize: 13, color: '#666666', textAlign: 'center' },
-
-  doneCircle: {
-    width: 80, height: 80, borderRadius: 40,
-    backgroundColor: '#00FF9420', borderWidth: 2, borderColor: '#00FF94',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 24,
-  },
-  doneCheck: { fontSize: 36, color: '#00FF94' },
-
-  primaryBtn: {
-    backgroundColor: '#00FF94', borderRadius: 14,
-    paddingVertical: 16, alignItems: 'center', marginBottom: 16,
-  },
-  primaryBtnText: { fontSize: 16, fontWeight: '700', color: '#0D0D0D' },
-
-  errorText:  {
-    fontSize: 13, color: '#FF4444',
-    backgroundColor: '#FF444420', borderRadius: 8,
-    padding: 12, marginBottom: 16,
-  },
-  footNote:   { fontSize: 12, color: '#444444', textAlign: 'center', lineHeight: 18 },
-});
+    error: { marginTop: 16, fontFamily: font.mono, fontSize: 12, color: '#FF4444', backgroundColor: alpha('#FF4444', 0.1), padding: 12, borderRadius: 8 },
+  });
+}

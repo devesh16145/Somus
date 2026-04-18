@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  TextInput, RefreshControl, Alert,
+  View, Text, StyleSheet, TouchableOpacity,
+  TextInput, RefreshControl, Alert, ScrollView, Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -12,31 +12,56 @@ import { TransactionRepository } from '../database/TransactionRepository';
 import { CATEGORY_LABELS, CATEGORY_EMOJI, Transaction } from '../types/Transaction';
 import { TxCategory } from '../modules/LeapModule';
 import { RootStackParams } from '../App';
+import { themes, accent, accentInk, font, alpha, ThemeMode } from '../theme';
+import LiquidIcon, { CAT_ICON } from '../components/LiquidIcons';
+import { FAB } from '../components/ActionViews';
 
 type Nav = NativeStackNavigationProp<RootStackParams>;
 
 export default function TransactionsScreen() {
   const nav = useNavigation<Nav>();
-  const { transactions, setTransactions, deleteTransactions } = useStore();
+  const { transactions, setTransactions, deleteTransactions, themeMode } = useStore();
+  const t = themes[themeMode];
+  const aink = accentInk(themeMode);
+
   const [search, setSearch]         = useState('');
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'DEBIT' | 'CREDIT'>('ALL');
+  const [currencyFilter, setCurrencyFilter] = useState<string>('ALL');
   const [refreshing, setRefreshing] = useState(false);
 
   // Selection mode
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected]   = useState<Set<string>>(new Set());
 
+  const currencies = useMemo(() => {
+    const set = new Set<string>();
+    transactions.forEach(x => set.add(x.currencyCode));
+    return Array.from(set).sort();
+  }, [transactions]);
+
   const filtered = useMemo(() => {
-    return transactions.filter(t => {
+    return transactions.filter(tx => {
       const q = search.toLowerCase();
       const matchSearch = !q ||
-        t.merchant.toLowerCase().includes(q) ||
-        t.sender.toLowerCase().includes(q) ||
-        (t.userCategory ?? t.category).toLowerCase().includes(q);
-      const matchType = typeFilter === 'ALL' || t.type === typeFilter;
-      return matchSearch && matchType;
+        tx.merchant.toLowerCase().includes(q) ||
+        tx.sender.toLowerCase().includes(q) ||
+        (tx.userCategory ?? tx.category).toLowerCase().includes(q);
+      const matchType = typeFilter === 'ALL' || (typeFilter === 'DEBIT' ? tx.type === 'DEBIT' : tx.type === 'CREDIT');
+      const matchCcy = currencyFilter === 'ALL' || tx.currencyCode === currencyFilter;
+      return matchSearch && matchType && matchCcy;
     });
-  }, [transactions, search, typeFilter]);
+  }, [transactions, search, typeFilter, currencyFilter]);
+
+  // Group by day
+  const grouped = useMemo(() => {
+    const groups: Record<string, Transaction[]> = {};
+    filtered.forEach(tx => {
+      const d = formatDateDay(tx.smsDate);
+      if (!groups[d]) groups[d] = [];
+      groups[d].push(tx);
+    });
+    return groups;
+  }, [filtered]);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -66,7 +91,7 @@ export default function TransactionsScreen() {
   }, []);
 
   const selectAll = useCallback(() => {
-    setSelected(new Set(filtered.map(t => t.id)));
+    setSelected(new Set(filtered.map(x => x.id)));
   }, [filtered]);
 
   const deleteSelected = useCallback(() => {
@@ -91,232 +116,217 @@ export default function TransactionsScreen() {
 
   const deleteAll = useCallback(() => {
     Alert.alert(
-      'Delete All Transactions',
-      `Delete all ${transactions.length} transactions? This cannot be undone.`,
+      'Delete All',
+      `Delete all ${transactions.length} transactions?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete All', style: 'destructive',
-          onPress: () => {
-            TransactionRepository.deleteAll();
-            setTransactions([]);
-            cancelSelection();
-          },
-        },
+        { text: 'Delete All', style: 'destructive', onPress: () => {
+          TransactionRepository.deleteAll();
+          setTransactions([]);
+          cancelSelection();
+        }}
       ]
     );
-  }, [transactions.length, setTransactions, cancelSelection]);
+  }, [transactions, setTransactions, cancelSelection]);
+
+  const s = getStyles(t, aink);
+
+  const filters = [
+    { l: 'All', n: transactions.length, on: typeFilter === 'ALL' && currencyFilter === 'ALL', action: () => { setTypeFilter('ALL'); setCurrencyFilter('ALL'); } },
+    { l: 'Spent', n: transactions.filter(x=>x.type==='DEBIT').length, on: typeFilter === 'DEBIT', action: () => { setTypeFilter('DEBIT'); setCurrencyFilter('ALL'); } },
+    { l: 'Received', n: transactions.filter(x=>x.type==='CREDIT').length, on: typeFilter === 'CREDIT', action: () => { setTypeFilter('CREDIT'); setCurrencyFilter('ALL'); } },
+    ...currencies.map(c => ({
+      l: c, n: transactions.filter(x=>x.currencyCode===c).length, on: currencyFilter === c, action: () => { setCurrencyFilter(c); setTypeFilter('ALL'); }
+    }))
+  ];
 
   return (
-    <SafeAreaView style={s.container} edges={['top']}>
-      {/* Header — switches between normal and selection mode */}
+    <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }} edges={['top']}>
+      {/* Header */}
       {selecting ? (
         <View style={s.header}>
-          <TouchableOpacity onPress={cancelSelection}>
-            <Text style={s.cancelBtn}>Cancel</Text>
-          </TouchableOpacity>
-          <Text style={s.title}>{selected.size} selected</Text>
-          <View style={s.headerActions}>
-            <TouchableOpacity onPress={selectAll} style={s.headerBtn}>
-              <Text style={s.headerBtnText}>All</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={deleteSelected}
-              style={[s.headerBtn, s.deleteBtn]}
-              disabled={selected.size === 0}>
-              <Text style={s.deleteBtnText}>Delete</Text>
-            </TouchableOpacity>
+          <TouchableOpacity onPress={cancelSelection}><Text style={[s.headerBtnText, {color: aink}]}>Cancel</Text></TouchableOpacity>
+          <Text style={s.titleSmall}>{selected.size} selected</Text>
+          <View style={{flexDirection:'row', gap:10}}>
+            <TouchableOpacity onPress={selectAll}><Text style={[s.headerBtnText, {color: t.inkDim}]}>All</Text></TouchableOpacity>
+            <TouchableOpacity onPress={deleteSelected} disabled={selected.size===0}><Text style={[s.headerBtnText, {color: '#FF4444'}]}>Delete</Text></TouchableOpacity>
           </View>
         </View>
       ) : (
-        <View style={s.header}>
-          <Text style={s.title}>Transactions</Text>
-          <View style={s.headerActions}>
-            {transactions.length > 0 && (
-              <TouchableOpacity onPress={deleteAll} style={[s.headerBtn, s.deleteAllBtn]}>
-                <Text style={s.deleteAllText}>Clear All</Text>
-              </TouchableOpacity>
-            )}
-            <Text style={s.count}>{filtered.length}</Text>
+        <View style={s.headerGroup}>
+          <View style={s.headerRow}>
+            <Text style={s.title}>Transactions</Text>
+            <View style={s.liveBadge}>
+              <View style={s.liveDot} />
+              <Text style={s.liveText}>live</Text>
+            </View>
           </View>
+          <Text style={s.subtitle}>
+            {transactions.length} entries · {currencies.length} currencies
+          </Text>
         </View>
       )}
 
-      {/* Search */}
-      <View style={s.searchBar}>
-        <Text style={s.searchIcon}>&#x2315;</Text>
-        <TextInput
-          style={s.searchInput}
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search merchant, category..."
-          placeholderTextColor="#444"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Text style={s.clearBtn}>&#x2715;</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Filter pills */}
-      <View style={s.filters}>
-        {(['ALL', 'DEBIT', 'CREDIT'] as const).map(f => (
-          <TouchableOpacity
-            key={f}
-            style={[s.filterPill, typeFilter === f && s.filterPillActive]}
-            onPress={() => setTypeFilter(f)}>
-            <Text style={[s.filterText, typeFilter === f && s.filterTextActive]}>
-              {f === 'ALL' ? 'All' : f === 'DEBIT' ? 'Spent' : 'Received'}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <FlatList
-        data={filtered}
-        keyExtractor={t => t.id}
-        extraData={selected}
-        renderItem={({ item }) => (
-          <TxListItem
-            tx={item}
-            selecting={selecting}
-            isSelected={selected.has(item.id)}
-            onPress={() => {
-              if (selecting) toggleSelect(item.id);
-              else nav.navigate('TransactionDetail', { transactionId: item.id });
-            }}
-            onLongPress={() => {
-              if (!selecting) onLongPress(item.id);
-            }}
+      {/* Search Bar */}
+      <View style={s.searchWrap}>
+        <View style={s.searchBar}>
+          <LiquidIcon name="search" size={15} color={t.mute} />
+          <TextInput
+            style={s.searchInput}
+            value={search} onChangeText={setSearch}
+            placeholder="search merchants…"
+            placeholderTextColor={t.mute}
+            autoCapitalize="none" autoCorrect={false}
           />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <Text style={{color: t.mute, fontFamily: font.mono}}>clear</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        {!selecting && transactions.length > 0 && (
+          <TouchableOpacity onPress={deleteAll} style={s.clearAllBtn} activeOpacity={0.7}>
+            <LiquidIcon name="basket" size={16} color={'#FF4444'} />
+          </TouchableOpacity>
         )}
-        ListEmptyComponent={
-          <View style={s.empty}>
-            <Text style={s.emptyText}>No transactions found</Text>
+      </View>
+
+      {/* Filters (Horizontal) */}
+      <View style={{ paddingBottom: 12 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterScroll}>
+          {filters.map(f => (
+            <TouchableOpacity key={f.l} onPress={f.action} style={[s.filterChip, f.on && s.filterChipOn]}>
+              <Text style={[s.filterChipText, f.on && { color: themeMode==='dark' ? '#0D0D0D' : '#ffffff' }]}>{f.l}</Text>
+              <Text style={[s.filterChipNum, f.on && { color: themeMode==='dark' ? '#0D0D0D' : '#ffffff', opacity: 0.7 }]}>{f.n}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* List */}
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accent.v} />}
+        showsVerticalScrollIndicator={false}
+      >
+        {Object.entries(grouped).map(([day, txns]) => {
+          const spend = txns.filter(x => x.type === 'DEBIT').reduce((acc, x) => acc + x.amount, 0);
+          const ccy = txns[0]?.currencyCode ?? 'USD';
+          return (
+            <View key={day} style={s.dayCard}>
+              <View style={s.dayHeader}>
+                <Text style={s.dayLabel}>{day.toLowerCase()}</Text>
+                <Text style={s.daySpend}>~{formatCurrency(spend, ccy)} spent</Text>
+              </View>
+              {txns.map((tx, i) => (
+                <TxListRow
+                  key={tx.id} tx={tx} t={t} aink={aink} index={i}
+                  selecting={selecting} isSelected={selected.has(tx.id)}
+                  onPress={() => selecting ? toggleSelect(tx.id) : nav.navigate('TransactionDetail', { transactionId: tx.id })}
+                  onLongPress={() => { if (!selecting) onLongPress(tx.id); }}
+                />
+              ))}
+            </View>
+          );
+        })}
+        {filtered.length === 0 && (
+          <View style={s.emptyBox}>
+            <Text style={{ fontFamily: font.ui, color: t.mute, fontSize: 13 }}>No transactions found.</Text>
           </View>
-        }
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh}
-            tintColor="#00FF94" colors={['#00FF94']} />
-        }
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
-        initialNumToRender={20}
-      />
+        )}
+      </ScrollView>
+      <FAB onPress={() => nav.navigate('AddTransaction')} />
     </SafeAreaView>
   );
 }
 
-function TxListItem({ tx, selecting, isSelected, onPress, onLongPress }: {
-  tx: Transaction; selecting: boolean; isSelected: boolean;
-  onPress: () => void; onLongPress: () => void;
-}) {
+function TxListRow({ tx, t, aink, index, selecting, isSelected, onPress, onLongPress }: any) {
   const cat = tx.userCategory ?? tx.category;
   return (
     <TouchableOpacity
-      style={[s.txRow, isSelected && s.txRowSelected]}
-      onPress={onPress}
-      onLongPress={onLongPress}
-      activeOpacity={0.7}>
+      activeOpacity={0.7} onPress={onPress} onLongPress={onLongPress}
+      style={[{
+        flexDirection: 'row', alignItems: 'center', gap: 12,
+        paddingVertical: 12, paddingHorizontal: 16,
+        borderTopWidth: index === 0 ? 0 : 1, borderTopColor: t.rule,
+        backgroundColor: isSelected ? alpha(accent.v, 0.1) : 'transparent',
+      }]}
+    >
       {selecting ? (
-        <View style={[s.checkbox, isSelected && s.checkboxSelected]}>
-          {isSelected && <Text style={s.checkmark}>&#x2713;</Text>}
+        <View style={{ width: 36, height: 36, borderRadius: 12, borderWidth: 2, borderColor: isSelected ? accent.v : t.ruleStrong, alignItems: 'center', justifyContent: 'center', backgroundColor: isSelected ? accent.v : 'transparent' }}>
+          {isSelected && <LiquidIcon name="check" size={20} color={'#0D0D0D'} />}
         </View>
       ) : (
-        <View style={s.txIcon}>
-          <Text style={{ fontSize: 18 }}>{CATEGORY_EMOJI[cat]}</Text>
+        <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: t.surfaceHi, alignItems: 'center', justifyContent: 'center' }}>
+          <LiquidIcon name={CAT_ICON[cat] ?? 'dots'} size={15} color={tx.type === 'CREDIT' ? aink : t.ink} strokeWidth={1.7} />
         </View>
       )}
-      <View style={{ flex: 1 }}>
-        <Text style={s.txMerchant} numberOfLines={1}>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={{ fontFamily: font.uiBold, fontSize: 14, color: t.ink }} numberOfLines={1}>
           {tx.merchant || tx.sender || 'Unknown'}
         </Text>
-        <Text style={s.txMeta}>
-          {CATEGORY_LABELS[cat]}  ·  {formatDate(tx.smsDate)}
+        <Text style={{ fontFamily: font.mono, fontSize: 10, color: t.mute, marginTop: 3 }} numberOfLines={1}>
+          {tx.sender.toLowerCase()} · {tx.city?.toLowerCase() ?? 'somewhere'}
         </Text>
       </View>
       <View style={{ alignItems: 'flex-end' }}>
-        <Text style={[s.txAmount, { color: tx.type === 'DEBIT' ? '#FF4444' : '#00FF94' }]}>
-          {tx.type === 'DEBIT' ? '\u2212' : '+'}{formatCurrency(tx.amount, tx.currencyCode)}
+        <Text style={{ fontFamily: font.monoBold, fontSize: 13, color: tx.type === 'CREDIT' ? aink : t.ink }}>
+          {tx.type === 'CREDIT' ? '+' : '\u2212'}{formatCurrencyOnly(tx.amount, tx.currencyCode)}
         </Text>
-        {!tx.userVerified && tx.confidence < 0.7 && (
-          <View style={s.badge}><Text style={s.badgeText}>review</Text></View>
-        )}
+        <Text style={{ fontFamily: font.mono, fontSize: 9, color: t.mute, marginTop: 2 }}>{tx.currencyCode}</Text>
       </View>
     </TouchableOpacity>
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0D0D0D' },
-  header:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-               paddingHorizontal: 20, paddingVertical: 16 },
-  title:     { fontSize: 24, fontWeight: '700', color: '#FFFFFF' },
-  count:     { fontSize: 13, color: '#555', backgroundColor: '#1A1A1A',
-               paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+function getStyles(t: any, aink: string) {
+  return StyleSheet.create({
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
+    headerBtnText: { fontFamily: font.uiBold, fontSize: 14 },
+    titleSmall: { fontFamily: font.uiBold, fontSize: 15, color: t.ink },
+    
+    headerGroup: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 6 },
+    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+    title: { fontFamily: font.uiBold, fontSize: 28, letterSpacing: -1.2, color: t.ink },
+    liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: accent.v, boxShadow: `0 0 8px ${accent.v}` },
+    liveText: { fontFamily: font.mono, fontSize: 10, color: t.mute },
+    subtitle: { fontFamily: font.mono, fontSize: 11, color: t.mute, marginTop: 4 },
 
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerBtn:     { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8,
-                   backgroundColor: '#1A1A1A' },
-  headerBtnText: { fontSize: 13, color: '#FFFFFF', fontWeight: '600' },
-  deleteBtn:     { backgroundColor: '#FF444430' },
-  deleteBtnText: { fontSize: 13, color: '#FF4444', fontWeight: '600' },
-  cancelBtn:     { fontSize: 15, color: '#00FF94', fontWeight: '600' },
+    searchWrap: { flexDirection: 'row', paddingHorizontal: 20, marginTop: 14, gap: 10, alignItems: 'center' },
+    searchBar: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: t.surface, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10, gap: 10, borderWidth: 1, borderColor: t.rule },
+    searchInput: { flex: 1, padding: 0, fontFamily: font.mono, fontSize: 13, color: t.ink },
+    clearAllBtn: { padding: 10, backgroundColor: alpha('#FF4444', 0.1), borderRadius: 12 },
 
-  deleteAllBtn:  { backgroundColor: '#FF444415', borderWidth: 1, borderColor: '#FF444440' },
-  deleteAllText: { fontSize: 12, color: '#FF4444', fontWeight: '600' },
+    filterScroll: { paddingHorizontal: 20, gap: 6, paddingTop: 12 },
+    filterChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 100, backgroundColor: t.surface, borderWidth: 1, borderColor: t.rule },
+    filterChipOn: { backgroundColor: accent.v, borderColor: accent.v },
+    filterChipText: { fontFamily: font.uiBold, fontSize: 11, color: t.inkDim },
+    filterChipNum: { fontFamily: font.mono, fontSize: 9, color: t.mute },
 
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#141414',
-               borderRadius: 12, marginHorizontal: 20, marginBottom: 12,
-               paddingHorizontal: 14, paddingVertical: 10, gap: 10 },
-  searchIcon:{ fontSize: 18, color: '#555' },
-  searchInput:{ flex: 1, fontSize: 15, color: '#FFFFFF', padding: 0 },
-  clearBtn:  { fontSize: 14, color: '#555' },
+    dayCard: { marginHorizontal: 16, marginBottom: 12, backgroundColor: t.surface, borderRadius: 22, overflow: 'hidden', borderWidth: 1, borderColor: t.rule },
+    dayHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
+    dayLabel: { fontFamily: font.mono, fontSize: 11, color: t.inkDim, letterSpacing: 0.4, fontWeight: '500' },
+    daySpend: { fontFamily: font.mono, fontSize: 11, color: t.mute },
 
-  filters:   { flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 16 },
-  filterPill:{ paddingHorizontal: 16, paddingVertical: 7, borderRadius: 20,
-               backgroundColor: '#141414', borderWidth: 1, borderColor: '#222' },
-  filterPillActive: { backgroundColor: '#00FF9420', borderColor: '#00FF94' },
-  filterText:{ fontSize: 13, color: '#666' },
-  filterTextActive: { color: '#00FF94', fontWeight: '600' },
-
-  txRow:     { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14,
-               borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#1A1A1A' },
-  txRowSelected: { backgroundColor: '#00FF9410', borderRadius: 12 },
-  txIcon:    { width: 42, height: 42, borderRadius: 12, backgroundColor: '#1A1A1A',
-               alignItems: 'center', justifyContent: 'center' },
-  txMerchant:{ fontSize: 15, color: '#FFFFFF', fontWeight: '500', marginBottom: 3 },
-  txMeta:    { fontSize: 12, color: '#555' },
-  txAmount:  { fontSize: 15, fontWeight: '700', marginBottom: 4 },
-  badge:     { backgroundColor: '#FF444420', borderRadius: 4,
-               paddingHorizontal: 6, paddingVertical: 2 },
-  badgeText: { fontSize: 10, color: '#FF4444' },
-
-  checkbox:  { width: 26, height: 26, borderRadius: 8, borderWidth: 2,
-               borderColor: '#444', alignItems: 'center', justifyContent: 'center' },
-  checkboxSelected: { backgroundColor: '#00FF94', borderColor: '#00FF94' },
-  checkmark: { fontSize: 14, color: '#000', fontWeight: '700' },
-
-  empty:     { alignItems: 'center', paddingTop: 60 },
-  emptyText: { color: '#444', fontSize: 15 },
-});
-
-function formatCurrency(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat('en', {
-      style: 'currency', currency, maximumFractionDigits: 0,
-    }).format(amount);
-  } catch {
-    return `${currency} ${amount.toFixed(0)}`;
-  }
+    emptyBox: { alignItems: 'center', paddingTop: 60 }
+  });
 }
 
-function formatDate(ms: number): string {
+function formatCurrency(amount: number, currency: string): string {
+  try { return new Intl.NumberFormat('en', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount); }
+  catch { return `${currency} ${amount.toFixed(0)}`; }
+}
+
+function formatCurrencyOnly(amount: number, currency: string): string {
+  try { return new Intl.NumberFormat('en', { style: 'decimal', maximumFractionDigits: 0 }).format(amount); }
+  catch { return amount.toFixed(0); }
+}
+
+function formatDateDay(ms: number): string {
   const d = new Date(ms);
   const now = new Date();
-  const diff = Math.floor((now.getTime() - d.getTime()) / 86400000);
+  const diff = Math.floor((now.setHours(0,0,0,0) - d.setHours(0,0,0,0)) / 86400000);
   if (diff === 0) return 'Today';
   if (diff === 1) return 'Yesterday';
   return d.toLocaleDateString('en', { day: 'numeric', month: 'short' });

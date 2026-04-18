@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, RefreshControl,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, RefreshControl, Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -15,6 +15,7 @@ import { SmsOrchestrator } from '../services/SmsOrchestrator';
 import { CATEGORY_LABELS, Transaction } from '../types/Transaction';
 import { TxCategory } from '../modules/LeapModule';
 import { RootStackParams } from '../App';
+import { FAB } from '../components/ActionViews';
 
 type Nav = NativeStackNavigationProp<RootStackParams>;
 
@@ -284,6 +285,14 @@ export default function DashboardScreen() {
         </View>
       </ScrollView>
       </SafeAreaView>
+      <FAB onPress={() => {
+        Alert.alert('Create New', 'What would you like to add?', [
+          { text: 'Transaction', onPress: () => nav.navigate('AddTransaction') },
+          { text: 'Subscription', onPress: () => nav.navigate('AddSubscription') },
+          { text: 'Goal', onPress: () => nav.navigate('AddGoal') },
+          { text: 'Cancel', style: 'cancel' }
+        ]);
+      }} />
     </View>
   );
 }
@@ -427,7 +436,8 @@ const s = StyleSheet.create({
   heroAmount: {
     fontFamily: font.display,
     fontSize: 78, letterSpacing: -3.5,
-    lineHeight: 72,
+    lineHeight: 85,
+    includeFontPadding: false,
   },
   heroSubtitle: {
     fontFamily: font.displayItalic,

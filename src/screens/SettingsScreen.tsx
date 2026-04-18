@@ -1,95 +1,66 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity,
-  Alert, ScrollView, Platform,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useStore } from '../store';
 import { LeapModule, MODELS } from '../modules/LeapModule';
-import { SmsModule } from '../modules/SmsModule';
 import { SmsOrchestrator } from '../services/SmsOrchestrator';
 import { TransactionRepository } from '../database/TransactionRepository';
+import { themes, accent, accentInk, font, alpha, ThemeMode } from '../theme';
+import LiquidIcon from '../components/LiquidIcons';
 
-type Period = '7d' | '30d' | '90d' | '180d';
+type Period = '7d' | '30d' | '90d' | '180d' | 'custom';
 const PERIODS: { label: string; value: Period; days: number }[] = [
-  { label: '7 days',   value: '7d',   days: 7   },
-  { label: '30 days',  value: '30d',  days: 30  },
-  { label: '3 months', value: '90d',  days: 90  },
-  { label: '6 months', value: '180d', days: 180 },
+  { label: '7d',   value: '7d',   days: 7   },
+  { label: '30d',  value: '30d',  days: 30  },
+  { label: '90d',  value: '90d',  days: 90  },
+  { label: '180d', value: '180d', days: 180 },
+  { label: 'Custom', value: 'custom', days: 0 },
 ];
 
 type ImportPhase = 'idle' | 'counting' | 'reading' | 'processing' | 'done' | 'error';
 
 export default function SettingsScreen() {
-  const { modelLoaded, setTransactions } = useStore();
+  const { modelLoaded, setTransactions, themeMode } = useStore();
+  const t = themes[themeMode];
+  const aink = accentInk(themeMode);
+
   const [selectedPeriod, setSelectedPeriod] = useState<Period>('30d');
-  const [smsCount, setSmsCount]             = useState<number | null>(null);
-  const [txCount, setTxCount]               = useState(0);
+  const [txCount, setTxCount] = useState(0);
 
   // Import state
-  const [phase, setPhase]           = useState<ImportPhase>('idle');
-  const [smsTotal, setSmsTotal]     = useState(0);
-  const [smsRead, setSmsRead]       = useState(0);
-  const [processed, setProcessed]   = useState(0);
-  const [txFound, setTxFound]       = useState(0);
-  const [errorMsg, setErrorMsg]     = useState<string | null>(null);
+  const [phase, setPhase] = useState<ImportPhase>('idle');
+  const [smsTotal, setSmsTotal] = useState(0);
+  const [smsRead, setSmsRead] = useState(0);
+  const [processed, setProcessed] = useState(0);
+  const [txFound, setTxFound] = useState(0);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     setTxCount(TransactionRepository.getCount());
   }, []);
-
-  async function previewCount() {
-    const period = PERIODS.find(p => p.value === selectedPeriod)!;
-    const end    = Date.now();
-    const start  = end - period.days * 86400000;
-    try {
-      const count = await SmsModule.countInPeriod(start, end);
-      setSmsCount(count);
-    } catch {
-      setSmsCount(null);
-    }
-  }
 
   async function runImport() {
     if (!modelLoaded) {
       Alert.alert('AI model not loaded', 'Please complete onboarding first.');
       return;
     }
-    const period = PERIODS.find(p => p.value === selectedPeriod)!;
-    const end    = Date.now();
-    const start  = end - period.days * 86400000;
+    const periodObj = PERIODS.find(p => p.value === selectedPeriod)!;
+    
+    // Quick custom date fallback (mocked logic for UI)
+    const days = selectedPeriod === 'custom' ? 365 : periodObj.days;
 
-    // Reset state
+    const end = Date.now();
+    const start = end - days * 86400000;
+
     setPhase('counting');
-    setSmsTotal(0);
-    setSmsRead(0);
-    setProcessed(0);
-    setTxFound(0);
-    setErrorMsg(null);
+    setSmsTotal(0); setSmsRead(0); setProcessed(0); setTxFound(0); setErrorMsg(null);
 
     try {
       const n = await SmsOrchestrator.syncPeriod(start, end, {
-        onSmsCount: (total) => {
-          setSmsTotal(total);
-          if (total === 0) {
-            setPhase('done');
-          } else {
-            setPhase('reading');
-          }
-        },
-        onSmsRead: (read, total) => {
-          setSmsRead(read);
-          setSmsTotal(total);
-          if (read >= total) {
-            setPhase('processing');
-          }
-        },
-        onProcessed: (proc, total, found) => {
-          setProcessed(proc);
-          setSmsTotal(total);
-          setTxFound(found);
-        },
+        onSmsCount: (total) => { setSmsTotal(total); if (total === 0) setPhase('done'); else setPhase('reading'); },
+        onSmsRead: (read, total) => { setSmsRead(read); setSmsTotal(total); if (read >= total) setPhase('processing'); },
+        onProcessed: (proc, total, found) => { setProcessed(proc); setSmsTotal(total); setTxFound(found); },
       });
 
       const fresh = TransactionRepository.getAll(200);
@@ -103,278 +74,219 @@ export default function SettingsScreen() {
     }
   }
 
-  function resetImport() {
-    setPhase('idle');
-    setErrorMsg(null);
-  }
+  function resetImport() { setPhase('idle'); setErrorMsg(null); }
 
-  const isImporting = phase === 'counting' || phase === 'reading' || phase === 'processing';
   const progressPct = smsTotal > 0 ? Math.round((processed / smsTotal) * 100) : 0;
+  const s = getStyles(t, aink, themeMode);
 
   return (
-    <SafeAreaView style={st.container} edges={['top']}>
-      <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={st.title}>Settings</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }} edges={['top']}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+        
+        {/* Header */}
+        <View style={s.header}>
+           <TouchableOpacity>
+             <LiquidIcon name="arrowRt" size={24} color={aink} style={{ transform: [{ rotate: '180deg' }] }} />
+           </TouchableOpacity>
+           <Text style={s.headerTitle}>Settings</Text>
+           <TouchableOpacity>
+             <LiquidIcon name="dots" size={24} color={aink} style={{ transform: [{ rotate: '90deg' }] }} />
+           </TouchableOpacity>
+        </View>
 
-        {/* ── Import SMS ── */}
-        <View style={st.card}>
-          <Text style={st.cardTitle}>Import SMS history</Text>
-          <Text style={st.cardDesc}>
-            Scan your past messages for bank transactions. Runs entirely on-device.
-          </Text>
+        {/* Profile Card */}
+        <View style={[s.card, s.profileWrap]}>
+           <View style={s.profileImgFrame}>
+              <View style={s.profileImgDummy}>
+                 <LiquidIcon name="home" color={t.bg} size={28} />
+              </View>
+              <View style={s.profileBadge}>
+                 <LiquidIcon name="check" size={10} color={t.bg} strokeWidth={3} />
+              </View>
+           </View>
+           <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                 <Text style={{ fontFamily: font.display, fontSize: 24, fontWeight: '500', color: t.ink, letterSpacing: -0.5 }}>Devesh</Text>
+                 <View style={{ backgroundColor: '#ecfccb', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                    <Text style={{ fontFamily: font.monoBold, fontSize: 10, color: '#4d7c0f' }}>VAULT PRO</Text>
+                 </View>
+              </View>
+              <Text style={{ fontFamily: font.ui, fontSize: 13, color: t.inkDim, marginBottom: 4 }}>devesh.sharma@sanctuary.io</Text>
+              <Text style={{ fontFamily: font.uiBold, fontSize: 12, color: aink }}>Stewardship Member since Jan 2024</Text>
+           </View>
+        </View>
 
-          {/* Period selector - only when idle */}
-          {(phase === 'idle' || phase === 'done' || phase === 'error') && (
+        {/* Local AI Management */}
+        <View style={s.card}>
+           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: alpha(aink, 0.15), alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
+                 <LiquidIcon name="chip" size={20} color={aink} />
+              </View>
+              <View style={{ flex: 1 }}>
+                 <Text style={{ fontFamily: font.uiBold, fontSize: 16, color: t.ink, marginBottom: 2 }}>Local AI Management</Text>
+                 <Text style={{ fontFamily: font.ui, fontSize: 13, color: t.inkDim }}>{MODELS.DEFAULT.slug} • \u223E {MODELS.DEFAULT.sizeMb}MB</Text>
+              </View>
+              <LiquidIcon name="chevron" size={16} color={t.mute} style={{ transform: [{ rotate: '-90deg' }] }} />
+           </View>
+           
+           <View style={{ flexDirection: 'row', gap: 12 }}>
+              <View style={s.statsPill}>
+                 <Text style={s.statsLabel}>On-Device Storage</Text>
+                 <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
+                   <Text style={s.statsMain}>1.2 GB</Text>
+                   <Text style={s.statsSub}> / 5GB</Text>
+                 </View>
+              </View>
+              <View style={s.statsPill}>
+                 <Text style={s.statsLabel}>Status</Text>
+                 <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
+                   <Text style={[s.statsMain, { color: '#4d7c0f' }]}>{modelLoaded ? 'Optimized' : 'Offline'}</Text>
+                 </View>
+              </View>
+           </View>
+        </View>
+
+        {/* SMS Import Feature */}
+        <View style={s.card}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <View>
+              <Text style={{ fontFamily: font.uiBold, fontSize: 15, color: t.ink }}>SMS Import & Sync</Text>
+              <Text style={{ fontFamily: font.ui, fontSize: 12, color: t.mute, marginTop: 2 }}>Extract transactions from your inbox</Text>
+            </View>
+            <View style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: alpha(accent.v, 0.22), borderRadius: 100 }}>
+              <Text style={{ fontFamily: font.monoBold, fontSize: 10, color: aink }}>{phase}</Text>
+            </View>
+          </View>
+
+          {(phase === 'idle' || phase === 'error' || phase === 'done') ? (
             <>
-              <Text style={st.fieldLabel}>Time period</Text>
-              <View style={st.periodRow}>
-                {PERIODS.map(p => (
-                  <TouchableOpacity
-                    key={p.value}
-                    style={[st.periodBtn, selectedPeriod === p.value && st.periodBtnActive]}
-                    onPress={() => { setSelectedPeriod(p.value); setSmsCount(null); }}>
-                    <Text style={[st.periodBtnText, selectedPeriod === p.value && st.periodBtnTextActive]}>
-                      {p.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              <View style={s.pillRow}>
+                {PERIODS.map((p) => {
+                  const on = selectedPeriod === p.value;
+                  return (
+                    <TouchableOpacity key={p.value} style={[s.pill, on && s.pillOn]} onPress={() => setSelectedPeriod(p.value)}>
+                      <Text style={[s.pillText, on && s.pillTextOn]}>{p.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-
-              {smsCount === null ? (
-                <TouchableOpacity style={st.secondaryBtn} onPress={previewCount}>
-                  <Text style={st.secondaryBtnText}>Preview count</Text>
-                </TouchableOpacity>
-              ) : (
-                <Text style={st.previewText}>{smsCount} SMS found in this period</Text>
-              )}
-            </>
-          )}
-
-          {/* ── Import progress ── */}
-          {isImporting && (
-            <View style={st.progressSection}>
-              {/* Phase indicator */}
-              <View style={st.phaseRow}>
-                <PhaseStep label="Count" active={phase === 'counting'} done={phase !== 'counting'} />
-                <View style={st.phaseDash} />
-                <PhaseStep label="Read SMS" active={phase === 'reading'} done={phase === 'processing'} />
-                <View style={st.phaseDash} />
-                <PhaseStep label="AI Scan" active={phase === 'processing'} done={false} />
-              </View>
-
-              {/* Progress bar */}
-              {phase === 'processing' && smsTotal > 0 && (
-                <View style={st.progressBarContainer}>
-                  <View style={st.progressBar}>
-                    <View style={[st.progressFill, { width: `${progressPct}%` }]} />
+              
+              {selectedPeriod === 'custom' && (
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                  <View style={{ flex: 1, backgroundColor: t.chipBg, padding: 12, borderRadius: 12 }}>
+                    <Text style={{ fontFamily: font.mono, fontSize: 10, color: t.mute, marginBottom: 4 }}>From</Text>
+                    <Text style={{ fontFamily: font.uiBold, fontSize: 13, color: t.ink }}>Jan 1, 2024</Text>
                   </View>
-                  <Text style={st.progressPct}>{progressPct}%</Text>
+                  <View style={{ flex: 1, backgroundColor: t.chipBg, padding: 12, borderRadius: 12 }}>
+                    <Text style={{ fontFamily: font.mono, fontSize: 10, color: t.mute, marginBottom: 4 }}>To</Text>
+                    <Text style={{ fontFamily: font.uiBold, fontSize: 13, color: t.ink }}>Today</Text>
+                  </View>
                 </View>
               )}
 
-              {/* Stats */}
-              <View style={st.statsGrid}>
-                <StatBox label="SMS found" value={smsTotal} />
-                <StatBox label="SMS read" value={smsRead} />
-                <StatBox label="AI processed" value={processed} />
-                <StatBox label="Transactions" value={txFound} accent />
+              {phase === 'error' && <Text style={{ color: '#ef4444', fontFamily: font.mono, fontSize: 11, marginTop: 12 }}>{errorMsg}</Text>}
+              {phase === 'done' && <Text style={{ color: aink, fontFamily: font.mono, fontSize: 11, marginTop: 12 }}>Imported {txFound} transactions from {smsTotal} messages.</Text>}
+              
+              <TouchableOpacity style={s.importBtn} onPress={phase === 'done' ? resetImport : runImport} disabled={!modelLoaded}>
+                <Text style={s.importBtnText}>
+                  {!modelLoaded ? 'AI disabled' : phase === 'done' ? 'Reset state' : 'Run Extractor \u2192'}
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <View style={{ marginTop: 12 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                <Text style={{ fontFamily: font.mono, fontSize: 10, color: t.inkDim }}>
+                  {phase === 'counting' ? 'counting...' : phase === 'reading' ? 'reading sandbox...' : 'inferencing...'}
+                </Text>
+                <Text style={{ fontFamily: font.monoBold, fontSize: 10, color: aink }}>
+                  {progressPct}% · {processed} / {smsTotal}
+                </Text>
               </View>
-
-              {/* Current phase text */}
-              <Text style={st.phaseText}>
-                {phase === 'counting' && 'Counting SMS messages...'}
-                {phase === 'reading' && `Reading SMS inbox... ${smsRead} / ${smsTotal}`}
-                {phase === 'processing' && `AI scanning... ${processed} / ${smsTotal} SMS`}
-              </Text>
+              <View style={{ height: 6, backgroundColor: t.chipBg, borderRadius: 3, overflow: 'hidden' }}>
+                <View style={{ width: `${progressPct}%`, height: '100%', backgroundColor: accent.v, borderRadius: 3, boxShadow: `0 0 12px ${accent.v}` }} />
+              </View>
             </View>
           )}
-
-          {/* ── Done ── */}
-          {phase === 'done' && (
-            <View style={st.doneSection}>
-              <Text style={st.doneIcon}>✓</Text>
-              <Text style={st.doneTitle}>Import complete</Text>
-              <Text style={st.doneDetail}>
-                Scanned {smsTotal} SMS  ·  Found {txFound} transaction{txFound === 1 ? '' : 's'}
-              </Text>
-              <TouchableOpacity style={st.secondaryBtn} onPress={resetImport}>
-                <Text style={st.secondaryBtnText}>Import again</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* ── Error ── */}
-          {phase === 'error' && (
-            <View>
-              <Text style={st.errorText}>{errorMsg}</Text>
-              <TouchableOpacity style={st.secondaryBtn} onPress={resetImport}>
-                <Text style={st.secondaryBtnText}>Try again</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* ── Import button (idle only) ── */}
-          {phase === 'idle' && (
-            <TouchableOpacity
-              style={[st.primaryBtn, !modelLoaded && st.primaryBtnDisabled]}
-              onPress={runImport}
-              disabled={!modelLoaded}>
-              <Text style={st.primaryBtnText}>
-                {modelLoaded ? 'Import Now' : 'AI model not loaded'}
-              </Text>
-            </TouchableOpacity>
-          )}
         </View>
 
-        {/* ── AI Model ── */}
-        <View style={st.card}>
-          <Text style={st.cardTitle}>AI model</Text>
-          <InfoRow label="Model"        value={MODELS.DEFAULT.slug} />
-          <InfoRow label="Quantization" value={MODELS.DEFAULT.quant} />
-          <InfoRow label="Size"         value={`~${MODELS.DEFAULT.sizeMb} MB`} />
-          <InfoRow label="Status"       value={modelLoaded ? 'Loaded' : 'Not loaded'}
-            valueColor={modelLoaded ? '#00FF94' : '#FF4444'} />
-          <InfoRow label="Cloud calls"  value="None" valueColor="#00FF94" />
+        {/* Global Navigation List */}
+        <View style={[s.card, { paddingVertical: 8, paddingHorizontal: 0 }]}>
+           <SettingRow t={t} icon="shield" name="Account & Security" sub="Biometric lock, encryption keys" />
+           <SettingRow t={t} icon="dots" name="SMS Permissions & Sync" sub="Private scraping, automated tracking" />
+           <SettingRow t={t} icon="disc" name="Appearance" sub="Light mode, tonal palette" badge="LIGHT" badgeColor={aink} />
+           <SettingRow t={t} icon="bag" name="Notifications" sub="Spending alerts, vault updates" />
+           <SettingRow t={t} icon="fork" name="Help & Support" sub="Documentation, Indigo Support" last />
         </View>
 
-        {/* ── Stats ── */}
-        <View style={st.card}>
-          <Text style={st.cardTitle}>Your data</Text>
-          <InfoRow label="Transactions stored" value={String(txCount)} />
-          <InfoRow label="Storage location"   value="On-device only" />
-          <InfoRow label="Cloud backup"       value="Never" valueColor="#00FF94" />
+        {/* Action Buttons */}
+        <View style={{ marginHorizontal: 20, marginTop: 10, gap: 14 }}>
+           <TouchableOpacity style={{ backgroundColor: aink, borderRadius: 100, paddingVertical: 18, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 10 }}>
+              <LiquidIcon name="shield" size={18} color={t.bg} />
+              <Text style={{ fontFamily: font.display, fontSize: 16, fontWeight: '600', color: t.bg }}>Lock Vault Now</Text>
+           </TouchableOpacity>
+
+           <TouchableOpacity style={{ backgroundColor: t.surface, borderWidth: 1, borderColor: t.rule, borderRadius: 100, paddingVertical: 18, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 10 }}>
+              <LiquidIcon name="arrowRt" size={18} color="#ef4444" style={{ transform: [{ rotate: '180deg' }] }} />
+              <Text style={{ fontFamily: font.display, fontSize: 16, fontWeight: '600', color: "#ef4444" }}>Sign Out</Text>
+           </TouchableOpacity>
         </View>
 
-        {/* ── Privacy ── */}
-        <View style={st.card}>
-          <Text style={st.cardTitle}>Privacy</Text>
-          <Text style={st.privacyText}>
-            Somus processes all your SMS and financial data entirely on your device
-            using the LFM2 AI model. No data is transmitted to any server.
-            The internet connection is used solely for the one-time model download.
-            {'\n\n'}
-            Your SMS messages, transaction history, and spending patterns never
-            leave your phone.
-          </Text>
+        {/* Footer */}
+        <View style={{ alignItems: 'center', marginTop: 40, marginBottom: 20 }}>
+           <Text style={{ fontFamily: font.monoBold, fontSize: 10, color: t.mute, letterSpacing: 0.5, marginBottom: 6 }}>SOMUS VAULT • V2.4.0 (STABLE)</Text>
+           <Text style={{ fontFamily: font.ui, fontSize: 11, color: alpha(t.mute, 0.7) }}>End-to-end encrypted financial sanctuary</Text>
         </View>
 
-        <Text style={st.version}>Somus v1.0.0  ·  {MODELS.DEFAULT.slug}</Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// ── Sub-components ────────────────────────────────────────────
-
-function PhaseStep({ label, active, done }: { label: string; active: boolean; done: boolean }) {
+function SettingRow({ t, icon, name, sub, badge, badgeColor, last = false }: any) {
   return (
-    <View style={st.phaseStep}>
-      <View style={[
-        st.phaseDot,
-        active && st.phaseDotActive,
-        done && st.phaseDotDone,
-      ]} />
-      <Text style={[
-        st.phaseLabel,
-        active && st.phaseLabelActive,
-        done && st.phaseLabelDone,
-      ]}>{label}</Text>
-    </View>
+    <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 20, borderBottomWidth: last ? 0 : 1, borderBottomColor: t.rule }}>
+      <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: t.chipBg, alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
+        <LiquidIcon name={icon} size={16} color={t.inkDim} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontFamily: font.uiBold, fontSize: 15, color: t.ink, marginBottom: 2 }}>{name}</Text>
+        <Text style={{ fontFamily: font.ui, fontSize: 12, color: t.mute }}>{sub}</Text>
+      </View>
+      {badge && (
+        <View style={{ backgroundColor: alpha(badgeColor, 0.15), paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, marginRight: 10 }}>
+          <Text style={{ fontFamily: font.monoBold, fontSize: 9, color: badgeColor }}>{badge}</Text>
+        </View>
+      )}
+      <LiquidIcon name="chevron" size={16} color={t.mute} style={{ transform: [{ rotate: '-90deg' }] }} />
+    </TouchableOpacity>
   );
 }
 
-function StatBox({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
-  return (
-    <View style={st.statBox}>
-      <Text style={[st.statValue, accent && { color: '#00FF94' }]}>{value}</Text>
-      <Text style={st.statLabel}>{label}</Text>
-    </View>
-  );
+function getStyles(t: any, aink: string, mode: ThemeMode) {
+  return StyleSheet.create({
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
+    headerTitle: { fontFamily: font.uiBold, fontSize: 18, color: aink },
+
+    card: { marginHorizontal: 20, marginBottom: 16, padding: 20, backgroundColor: t.surface, borderRadius: 28, borderWidth: 1, borderColor: t.rule },
+    
+    profileWrap: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+    profileImgFrame: { width: 72, height: 72, borderRadius: 36, backgroundColor: alpha(accent.v, 0.2), alignItems: 'center', justifyContent: 'center' },
+    profileImgDummy: { width: 64, height: 64, borderRadius: 32, backgroundColor: t.ink, alignItems: 'center', justifyContent: 'center' },
+    profileBadge: { position: 'absolute', bottom: 0, right: 0, width: 22, height: 22, borderRadius: 11, backgroundColor: aink, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: t.surface },
+
+    statsPill: { flex: 1, backgroundColor: t.bg, borderRadius: 20, padding: 16 },
+    statsLabel: { fontFamily: font.ui, fontSize: 11, color: t.mute },
+    statsMain: { fontFamily: font.uiBold, fontSize: 16, color: t.ink },
+    statsSub: { fontFamily: font.mono, fontSize: 10, color: t.mute },
+
+    pillRow: { flexDirection: 'row', gap: 6 },
+    pill: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 12, backgroundColor: t.chipBg },
+    pillOn: { backgroundColor: accent.v },
+    pillText: { fontFamily: font.monoBold, fontSize: 11, color: t.inkDim },
+    pillTextOn: { color: mode === 'dark' ? '#0D0D0D' : '#FFFFFF' },
+
+    importBtn: { marginTop: 14, width: '100%', paddingVertical: 14, backgroundColor: t.ink === '#f2f2f5' ? '#f2f2f5' : t.ink, borderRadius: 16, alignItems: 'center' },
+    importBtnText: { fontFamily: font.display, fontSize: 14, color: t.bg, fontWeight: '600' },
+  });
 }
-
-function InfoRow({
-  label, value, valueColor,
-}: { label: string; value: string; valueColor?: string }) {
-  return (
-    <View style={st.infoRow}>
-      <Text style={st.infoLabel}>{label}</Text>
-      <Text style={[st.infoValue, valueColor ? { color: valueColor } : {}]}>{value}</Text>
-    </View>
-  );
-}
-
-const st = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: '#0D0D0D' },
-  scroll:       { padding: 20, paddingBottom: 60 },
-  title:        { fontSize: 28, fontWeight: '700', color: '#FFFFFF', marginBottom: 24 },
-
-  card:         { backgroundColor: '#141414', borderRadius: 16, padding: 20, marginBottom: 16 },
-  cardTitle:    { fontSize: 16, fontWeight: '700', color: '#FFFFFF', marginBottom: 6 },
-  cardDesc:     { fontSize: 13, color: '#666', lineHeight: 20, marginBottom: 20 },
-
-  fieldLabel:        { fontSize: 12, color: '#555', marginBottom: 10,
-                       textTransform: 'uppercase', letterSpacing: 1 },
-  periodRow:         { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  periodBtn:         { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-                       backgroundColor: '#1A1A1A', borderWidth: 1, borderColor: '#222' },
-  periodBtnActive:   { backgroundColor: '#00FF9420', borderColor: '#00FF94' },
-  periodBtnText:     { fontSize: 13, color: '#666' },
-  periodBtnTextActive:{ color: '#00FF94', fontWeight: '600' },
-
-  previewText:  { fontSize: 13, color: '#888', marginBottom: 14, textAlign: 'center' },
-
-  // Progress section
-  progressSection: { marginTop: 4 },
-  phaseRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-                  marginBottom: 20, gap: 4 },
-  phaseStep:    { alignItems: 'center', gap: 4 },
-  phaseDot:     { width: 10, height: 10, borderRadius: 5, backgroundColor: '#333' },
-  phaseDotActive: { backgroundColor: '#00FF94' },
-  phaseDotDone: { backgroundColor: '#00FF9460' },
-  phaseDash:    { width: 24, height: 1, backgroundColor: '#333', marginBottom: 14 },
-  phaseLabel:   { fontSize: 11, color: '#444' },
-  phaseLabelActive: { color: '#00FF94', fontWeight: '600' },
-  phaseLabelDone:   { color: '#666' },
-
-  progressBarContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
-  progressBar:  { flex: 1, height: 6, backgroundColor: '#222', borderRadius: 3, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: '#00FF94', borderRadius: 3 },
-  progressPct:  { fontSize: 13, color: '#00FF94', fontWeight: '700', width: 40, textAlign: 'right' },
-
-  statsGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  statBox:      { flex: 1, minWidth: '40%', backgroundColor: '#1A1A1A', borderRadius: 10,
-                  padding: 12, alignItems: 'center' },
-  statValue:    { fontSize: 20, fontWeight: '700', color: '#FFF', marginBottom: 2 },
-  statLabel:    { fontSize: 11, color: '#555' },
-
-  phaseText:    { fontSize: 13, color: '#666', textAlign: 'center', marginBottom: 4 },
-
-  // Done
-  doneSection:  { alignItems: 'center', paddingVertical: 12 },
-  doneIcon:     { fontSize: 28, color: '#00FF94', marginBottom: 8 },
-  doneTitle:    { fontSize: 16, fontWeight: '700', color: '#FFFFFF', marginBottom: 6 },
-  doneDetail:   { fontSize: 13, color: '#666', marginBottom: 16 },
-
-  errorText:  {
-    fontSize: 13, color: '#FF4444',
-    backgroundColor: '#FF444420', borderRadius: 8,
-    padding: 12, marginBottom: 16,
-  },
-
-  primaryBtn:         { backgroundColor: '#00FF94', borderRadius: 12,
-                        paddingVertical: 14, alignItems: 'center', marginTop: 4 },
-  primaryBtnDisabled: { backgroundColor: '#1A1A1A' },
-  primaryBtnText:     { fontSize: 15, fontWeight: '700', color: '#0D0D0D' },
-  secondaryBtn:       { borderWidth: 1, borderColor: '#333', borderRadius: 12,
-                        paddingVertical: 12, alignItems: 'center', marginBottom: 12 },
-  secondaryBtnText:   { fontSize: 14, color: '#888' },
-
-  infoRow:    { flexDirection: 'row', justifyContent: 'space-between',
-                paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth,
-                borderBottomColor: '#1F1F1F' },
-  infoLabel:  { fontSize: 14, color: '#666' },
-  infoValue:  { fontSize: 14, color: '#FFFFFF', fontWeight: '500' },
-
-  privacyText:{ fontSize: 13, color: '#666', lineHeight: 22 },
-  version:    { fontSize: 12, color: '#333', textAlign: 'center', marginTop: 8 },
-});

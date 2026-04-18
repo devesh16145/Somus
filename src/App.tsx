@@ -4,30 +4,37 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-
 import { initDb } from './database/Database';
 import { useStore } from './store';
 import { LeapModule } from './modules/LeapModule';
 import { SmsOrchestrator } from './services/SmsOrchestrator';
 import { TransactionRepository } from './database/TransactionRepository';
-import { colors, font, alpha } from './theme';
+import { font, alpha, themes, accent, accentInk } from './theme';
+import LiquidIcon from './components/LiquidIcons';
 
 import OnboardingScreen from './screens/OnboardingScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import TransactionsScreen from './screens/TransactionsScreen';
 import TransactionDetailScreen from './screens/TransactionDetailScreen';
+import SubscriptionsScreen from './screens/SubscriptionsScreen';
+import GoalsScreen from './screens/GoalsScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import { AddTransactionScreen, AddSubscriptionScreen, AddGoalScreen } from './components/ActionViews';
 
 export type RootStackParams = {
   Onboarding: undefined;
   Main: undefined;
   TransactionDetail: { transactionId: string };
+  AddTransaction: undefined;
+  AddSubscription: undefined;
+  AddGoal: undefined;
 };
 
 export type TabParams = {
   Dashboard: undefined;
   Transactions: undefined;
+  Subscriptions: undefined;
+  Goals: undefined;
   Settings: undefined;
 };
 
@@ -35,39 +42,41 @@ const Stack = createNativeStackNavigator<RootStackParams>();
 const Tab   = createBottomTabNavigator<TabParams>();
 
 function TabNavigator() {
+  const { themeMode } = useStore();
+  const t = themes[themeMode];
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
+        tabBarShowLabel: false,
         tabBarStyle: {
-          backgroundColor: colors.surfaceContainerLowest, // use a solid opaque color since transparency can look muddy
-          borderTopWidth: 1,
-          borderTopColor: colors.surfaceContainerHighest,
-          paddingBottom: 24,
-          paddingTop: 12,
-          height: 80,
-          borderTopLeftRadius: 48,
-          borderTopRightRadius: 48,
-          elevation: 0, // completely remove shadow for M3 feel
-          position: 'absolute' as const,
+          position: 'absolute',
+          bottom: 24,
+          left: 48,
+          right: 48,
+          backgroundColor: t.surface,
+          borderTopWidth: 0,
+          height: 64,
+          borderRadius: 32,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.1,
+          shadowRadius: 24,
+          elevation: 10,
+          paddingBottom: 0,
         },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: alpha(colors.onSurface, 0.50),
-        tabBarLabelStyle: {
-          fontFamily: font.label,
-          fontSize: 11,
-          fontWeight: '600',
-          letterSpacing: 0.5,
-          marginTop: 4,
-        },
+        tabBarActiveTintColor: t.ink,
+        tabBarInactiveTintColor: t.mute,
       }}>
       <Tab.Screen
         name="Dashboard"
         component={DashboardScreen}
         options={{
-          tabBarLabel: 'Dashboard',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="view-dashboard-outline" color={color} focused={focused} />
+            <View style={{ alignItems: 'center', justifyContent: 'center', backgroundColor: focused ? alpha(accent.v, 0.15) : 'transparent', borderRadius: 20, paddingHorizontal: focused ? 18 : 0, paddingVertical: focused ? 8 : 0 }}>
+              <LiquidIcon name="home" color={focused ? accent.v : color} size={focused ? 24 : 22} strokeWidth={focused ? 2 : 1.7} />
+            </View>
           ),
         }}
       />
@@ -75,9 +84,32 @@ function TabNavigator() {
         name="Transactions"
         component={TransactionsScreen}
         options={{
-          tabBarLabel: 'Transactions',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="receipt-text-outline" color={color} focused={focused} />
+            <View style={{ alignItems: 'center', justifyContent: 'center', backgroundColor: focused ? alpha(accent.v, 0.15) : 'transparent', borderRadius: 20, paddingHorizontal: focused ? 18 : 0, paddingVertical: focused ? 8 : 0 }}>
+              <LiquidIcon name="basket" color={focused ? accent.v : color} size={focused ? 24 : 22} strokeWidth={focused ? 2 : 1.7} />
+            </View>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Subscriptions"
+        component={SubscriptionsScreen}
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ alignItems: 'center', justifyContent: 'center', backgroundColor: focused ? alpha(accent.v, 0.15) : 'transparent', borderRadius: 20, paddingHorizontal: focused ? 18 : 0, paddingVertical: focused ? 8 : 0 }}>
+              <LiquidIcon name="bag" color={focused ? accent.v : color} size={focused ? 24 : 22} strokeWidth={focused ? 2 : 1.7} />
+            </View>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Goals"
+        component={GoalsScreen}
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ alignItems: 'center', justifyContent: 'center', backgroundColor: focused ? alpha(accent.v, 0.15) : 'transparent', borderRadius: 20, paddingHorizontal: focused ? 18 : 0, paddingVertical: focused ? 8 : 0 }}>
+              <LiquidIcon name="disc" color={focused ? accent.v : color} size={focused ? 24 : 22} strokeWidth={focused ? 2 : 1.7} />
+            </View>
           ),
         }}
       />
@@ -85,9 +117,10 @@ function TabNavigator() {
         name="Settings"
         component={SettingsScreen}
         options={{
-          tabBarLabel: 'Settings',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="cog-outline" color={color} focused={focused} />
+            <View style={{ alignItems: 'center', justifyContent: 'center', backgroundColor: focused ? alpha(accent.v, 0.15) : 'transparent', borderRadius: 20, paddingHorizontal: focused ? 18 : 0, paddingVertical: focused ? 8 : 0 }}>
+              <LiquidIcon name="cog" color={focused ? accent.v : color} size={focused ? 24 : 22} strokeWidth={focused ? 2 : 1.7} />
+            </View>
           ),
         }}
       />
@@ -95,23 +128,8 @@ function TabNavigator() {
   );
 }
 
-function TabIcon({ name, color, focused }: { name: string; color: string; focused: boolean }) {
-  return (
-    <View style={{
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: focused ? colors.secondaryContainer : 'transparent',
-      borderRadius: 32,
-      paddingHorizontal: focused ? 24 : 0,
-      paddingVertical: focused ? 6 : 0,
-    }}>
-      <Icon name={name} size={26} color={color} />
-    </View>
-  );
-}
-
 export default function App() {
-  const { setModelLoaded, setTransactions, setPendingCount } = useStore();
+  const { setModelLoaded, setTransactions, setPendingCount, themeMode } = useStore();
 
   useEffect(() => {
     try { initDb(); } catch (e) { console.error('DB init failed', e); }
@@ -152,7 +170,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      <StatusBar barStyle={themeMode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={themes[themeMode].bg} />
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
@@ -162,6 +180,9 @@ export default function App() {
             component={TransactionDetailScreen}
             options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
           />
+          <Stack.Screen name="AddTransaction" component={AddTransactionScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="AddSubscription" component={AddSubscriptionScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="AddGoal" component={AddGoalScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Model Selection - Private Finance App</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-error": "#fff7f7",
+                    "surface-container-highest": "#e3dfff",
+                    "error": "#ac3149",
+                    "primary-dim": "#3749ad",
+                    "on-error-container": "#68001f",
+                    "tertiary-fixed-dim": "#deef7c",
+                    "tertiary-container": "#ecfd88",
+                    "primary-container": "#b3bdff",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-variant": "#e3dfff",
+                    "on-primary": "#faf8ff",
+                    "on-primary-fixed": "#00187b",
+                    "inverse-surface": "#0d0c20",
+                    "on-primary-container": "#1c3096",
+                    "surface-dim": "#dad6ff",
+                    "inverse-on-surface": "#9d9ab5",
+                    "on-tertiary-fixed": "#454e00",
+                    "on-secondary": "#f4fec8",
+                    "tertiary-fixed": "#ecfd88",
+                    "secondary-dim": "#4e572f",
+                    "on-tertiary": "#f6ffb8",
+                    "on-background": "#302e56",
+                    "error-dim": "#770326",
+                    "on-tertiary-fixed-variant": "#5f6c00",
+                    "surface-container-high": "#e9e5ff",
+                    "secondary-fixed": "#ebf6c1",
+                    "primary-fixed": "#b3bdff",
+                    "on-tertiary-container": "#566100",
+                    "primary": "#4456ba",
+                    "surface-container": "#f0ebff",
+                    "on-secondary-fixed-variant": "#5f693e",
+                    "secondary-fixed-dim": "#dde8b3",
+                    "secondary-container": "#ebf6c1",
+                    "on-secondary-container": "#555e35",
+                    "inverse-primary": "#8596ff",
+                    "tertiary": "#596500",
+                    "outline": "#7976a3",
+                    "surface-bright": "#fcf8ff",
+                    "error-container": "#f76a80",
+                    "surface-tint": "#4456ba",
+                    "on-surface-variant": "#5d5a86",
+                    "tertiary-dim": "#4e5800",
+                    "on-primary-fixed-variant": "#273a9f",
+                    "primary-fixed-dim": "#a1aeff",
+                    "outline-variant": "#b1addd",
+                    "on-secondary-fixed": "#434c25",
+                    "on-surface": "#302e56",
+                    "background": "#fcf8ff",
+                    "secondary": "#5a6339",
+                    "surface-container-low": "#f6f2ff",
+                    "surface": "#fcf8ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Manrope"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .gradient-primary {
+        background: linear-gradient(135deg, #4456ba 0%, #b3bdff 100%);
+      }
+      .scale-98-on-press:active {
+        transform: scale(0.98);
+      }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container">
+<!-- Top App Bar -->
+<header class="w-full top-0 sticky bg-[#fcf8ff] dark:bg-slate-950 flex items-center justify-between px-6 py-4 w-full z-50">
+<div class="flex items-center gap-4">
+<button class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-[#f6f2ff] dark:hover:bg-slate-900 transition-colors scale-98-on-press duration-200">
+<span class="material-symbols-outlined text-[#4456ba] dark:text-[#b3bdff]">arrow_back</span>
+</button>
+<h1 class="font-['Manrope'] font-semibold text-lg tracking-tight text-[#4456ba] dark:text-[#b3bdff]">Model Selection</h1>
+</div>
+</header>
+<main class="px-6 py-4 flex flex-col gap-8 max-w-md mx-auto">
+<!-- Hero Section -->
+<section class="flex flex-col gap-3">
+<h2 class="font-headline font-extrabold text-3xl tracking-tight text-on-surface">Choose Your Local Intelligence.</h2>
+<div class="bg-surface-container-low p-5 rounded-lg flex items-start gap-4">
+<span class="material-symbols-outlined text-primary mt-1" style="font-variation-settings: 'FILL' 1;">shield</span>
+<p class="text-on-surface-variant leading-relaxed text-sm">
+                    These models live directly on your phone and <span class="font-semibold text-on-surface">never touch the cloud</span>. Your financial data remains encrypted and private at all times.
+                </p>
+</div>
+</section>
+<!-- Selection Cards Container -->
+<div class="flex flex-col gap-4">
+<!-- Model Option 1: Chat Optimized -->
+<label class="group relative cursor-pointer">
+<input checked="" class="peer sr-only" name="model_selection" type="radio"/>
+<div class="p-6 rounded-lg bg-surface-container border-[1.5px] border-transparent transition-all duration-200 peer-checked:border-primary peer-checked:bg-surface-container-high scale-98-on-press">
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-primary-container rounded-lg text-on-primary-container">
+<span class="material-symbols-outlined">memory</span>
+</div>
+<div class="bg-secondary-container px-3 py-1 rounded-full">
+<span class="text-[10px] font-bold uppercase tracking-wider text-on-secondary-container font-label">Recommended</span>
+</div>
+</div>
+<h3 class="font-headline font-bold text-xl text-on-surface mb-1">LFM 2.5 (Chat Optimized)</h3>
+<p class="text-on-surface-variant text-sm mb-6 leading-snug">Best for quick categorization and fast performance.</p>
+<div class="grid grid-cols-2 gap-3">
+<div class="bg-surface-container-lowest p-3 rounded-lg">
+<span class="text-[10px] block font-medium text-on-surface-variant mb-1 uppercase font-label">Parameters</span>
+<span class="text-sm font-bold text-on-surface">300M</span>
+</div>
+<div class="bg-surface-container-lowest p-3 rounded-lg">
+<span class="text-[10px] block font-medium text-on-surface-variant mb-1 uppercase font-label">Resource Use</span>
+<span class="text-sm font-bold text-on-surface">~142MB Disk</span>
+</div>
+</div>
+<div class="absolute top-4 right-4 opacity-0 peer-checked:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+</label>
+<!-- Model Option 2: Vision Enabled -->
+<label class="group relative cursor-pointer">
+<input class="peer sr-only" name="model_selection" type="radio"/>
+<div class="p-6 rounded-lg bg-surface-container border-[1.5px] border-transparent transition-all duration-200 peer-checked:border-primary peer-checked:bg-surface-container-high scale-98-on-press">
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-surface-container-highest rounded-lg text-on-surface">
+<span class="material-symbols-outlined">visibility</span>
+</div>
+</div>
+<h3 class="font-headline font-bold text-xl text-on-surface mb-1">LFM 2.5 VL (Vision Enabled)</h3>
+<p class="text-on-surface-variant text-sm mb-6 leading-snug">Best for receipt scanning, photo logs, and deeper analysis.</p>
+<div class="grid grid-cols-2 gap-3">
+<div class="bg-surface-container-lowest p-3 rounded-lg">
+<span class="text-[10px] block font-medium text-on-surface-variant mb-1 uppercase font-label">Parameters</span>
+<span class="text-sm font-bold text-on-surface">1.6B</span>
+</div>
+<div class="bg-surface-container-lowest p-3 rounded-lg">
+<span class="text-[10px] block font-medium text-on-surface-variant mb-1 uppercase font-label">Resource Use</span>
+<span class="text-sm font-bold text-on-surface">~850MB Disk</span>
+</div>
+</div>
+<div class="absolute top-4 right-4 opacity-0 peer-checked:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+</label>
+</div>
+<!-- Privacy Assurance Card -->
+<div class="mt-4 rounded-lg bg-tertiary-container/30 p-6 flex items-center gap-4 border border-tertiary-fixed-dim/20">
+<div class="w-12 h-12 rounded-full gradient-primary flex-shrink-0 flex items-center justify-center text-white">
+<span class="material-symbols-outlined">lock</span>
+</div>
+<div>
+<h4 class="font-headline font-bold text-sm text-on-tertiary-container">Hardware Accelerated</h4>
+<p class="text-xs text-on-tertiary-container/80 leading-relaxed">Optimization enabled for your local neural engine.</p>
+</div>
+</div>
+<!-- Action Area -->
+<footer class="mt-auto py-6">
+<button class="w-full py-5 rounded-full gradient-primary text-on-primary font-headline font-bold text-lg shadow-xl shadow-primary/20 scale-98-on-press transition-transform">
+                Start Setup
+            </button>
+<p class="text-center text-on-surface-variant text-[11px] mt-4 px-8 leading-normal font-label">
+                By starting setup, you agree to local data processing terms. No data will leave this device.
+            </p>
+</footer>
+</main>
+<!-- Background Decoration (Organic Shapes) -->
+<div class="fixed top-[-10%] right-[-20%] w-[300px] h-[300px] rounded-full bg-primary-container/20 blur-[80px] -z-10"></div>
+<div class="fixed bottom-[-10%] left-[-20%] w-[250px] h-[250px] rounded-full bg-secondary-container/20 blur-[80px] -z-10"></div>
+</body></html>

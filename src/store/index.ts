@@ -67,6 +67,6 @@ export const useStore = create<Store>((set) => ({
   setTxFoundCount: (txFoundCount) => set({ txFoundCount }),
   setPendingCount: (pendingCount) => set({ pendingCount }),
 
-  themeMode: 'dark' as ThemeMode,
+  themeMode: 'light' as ThemeMode,
   setThemeMode: (themeMode) => set({ themeMode }),
 }));

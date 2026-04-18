@@ -1,0 +1,212 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary-fixed": "#434c25",
+                    "secondary-fixed": "#ebf6c1",
+                    "primary-fixed": "#b3bdff",
+                    "inverse-surface": "#0d0c20",
+                    "surface-container-highest": "#e3dfff",
+                    "surface-dim": "#dad6ff",
+                    "error-container": "#f76a80",
+                    "on-error-container": "#68001f",
+                    "on-primary-container": "#1c3096",
+                    "outline": "#7976a3",
+                    "on-error": "#fff7f7",
+                    "tertiary-container": "#ecfd88",
+                    "primary": "#4456ba",
+                    "on-tertiary-fixed-variant": "#5f6c00",
+                    "on-background": "#302e56",
+                    "inverse-on-surface": "#9d9ab5",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-fixed": "#454e00",
+                    "primary-fixed-dim": "#a1aeff",
+                    "on-tertiary": "#f6ffb8",
+                    "primary-container": "#b3bdff",
+                    "on-primary-fixed-variant": "#273a9f",
+                    "secondary-container": "#ebf6c1",
+                    "secondary": "#5a6339",
+                    "surface": "#fcf8ff",
+                    "on-primary-fixed": "#00187b",
+                    "background": "#fcf8ff",
+                    "on-secondary-fixed-variant": "#5f693e",
+                    "primary-dim": "#3749ad",
+                    "tertiary-dim": "#4e5800",
+                    "error-dim": "#770326",
+                    "surface-variant": "#e3dfff",
+                    "surface-container": "#f0ebff",
+                    "surface-tint": "#4456ba",
+                    "secondary-dim": "#4e572f",
+                    "on-secondary-container": "#555e35",
+                    "secondary-fixed-dim": "#dde8b3",
+                    "surface-bright": "#fcf8ff",
+                    "tertiary-fixed": "#ecfd88",
+                    "surface-container-low": "#f6f2ff",
+                    "tertiary-fixed-dim": "#deef7c",
+                    "on-surface": "#302e56",
+                    "inverse-primary": "#8596ff",
+                    "tertiary": "#596500",
+                    "on-primary": "#faf8ff",
+                    "surface-container-high": "#e9e5ff",
+                    "on-secondary": "#f4fec8",
+                    "error": "#ac3149",
+                    "on-surface-variant": "#5d5a86",
+                    "outline-variant": "#b1addd",
+                    "on-tertiary-container": "#566100"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Manrope"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .organic-shape-1 {
+            border-radius: 4rem 1.5rem 4rem 4rem;
+        }
+        .organic-shape-2 {
+            border-radius: 1.5rem 4rem 4rem 4rem;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container">
+<main class="min-h-screen flex flex-col items-center justify-center px-6 py-12 lg:py-24">
+<!-- Hero Section -->
+<div class="max-w-4xl w-full flex flex-col md:flex-row items-center gap-12 lg:gap-24">
+<!-- Expressive Visual Side -->
+<div class="relative w-full md:w-1/2 flex justify-center items-center">
+<div class="relative w-full aspect-square max-w-[400px]">
+<!-- Layered Organic Shapes representing security/vault -->
+<div class="absolute inset-0 organic-shape-1 bg-surface-container rotate-6"></div>
+<div class="absolute inset-4 organic-shape-2 bg-surface-container-high -rotate-3"></div>
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="w-48 h-48 rounded-full bg-gradient-to-br from-primary to-primary-container flex items-center justify-center transform active:scale-95 transition-transform duration-200">
+<span class="material-symbols-outlined text-[80px] text-on-primary" style="font-variation-settings: &quot;FILL&quot; 1;">shield_lock</span>
+</div>
+</div>
+<!-- Decorative Floating Elements -->
+<div class="absolute -top-4 -right-4 w-20 h-20 bg-secondary-container rounded-lg rotate-12 flex items-center justify-center">
+<span class="material-symbols-outlined text-on-secondary-container text-3xl" style="">sms</span>
+</div>
+<div class="absolute -bottom-8 -left-4 w-16 h-16 bg-tertiary-container rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-on-tertiary-container text-2xl" style="">verified_user</span>
+</div>
+</div>
+</div>
+<!-- Content Side -->
+<div class="w-full md:w-1/2 space-y-8">
+<header class="space-y-4">
+<div class="inline-flex items-center px-4 py-1.5 rounded-full bg-surface-container-low text-primary font-medium text-sm tracking-wide" style="">
+<span class="material-symbols-outlined text-[18px] mr-2" style="">lock</span>
+                        Privacy First
+                    </div>
+<h1 class="text-4xl md:text-5xl lg:text-6xl font-headline font-extrabold tracking-tight text-on-surface leading-[1.1]" style="">
+                        Your data is yours.
+                    </h1>
+<p class="text-lg md:text-xl text-on-surface-variant leading-relaxed max-w-md" style="">
+                        Indigo Vault secures your SMS financial alerts with military-grade local encryption. We never see your data—because we don't need to.
+                    </p>
+</header>
+<!-- Benefits List -->
+<div class="space-y-6">
+<div class="flex items-start gap-4 group">
+<div class="w-12 h-12 shrink-0 rounded-2xl bg-surface-container flex items-center justify-center group-hover:bg-primary-container transition-colors">
+<span class="material-symbols-outlined text-primary" style="">phonelink_lock</span>
+</div>
+<div>
+<h3 class="font-headline font-semibold text-on-surface" style="">Zero-Cloud Architecture</h3>
+<p class="text-on-surface-variant text-sm" style="">All transaction parsing happens 100% on your device. Your data never touches a server.</p>
+</div>
+</div>
+<div class="flex items-start gap-4 group">
+<div class="w-12 h-12 shrink-0 rounded-2xl bg-surface-container flex items-center justify-center group-hover:bg-primary-container transition-colors">
+<span class="material-symbols-outlined text-primary" style="">visibility_off</span>
+</div>
+<div>
+<h3 class="font-headline font-semibold text-on-surface" style="">End-to-End Privacy</h3>
+<p class="text-on-surface-variant text-sm" style="">Automated categorizing without human eyes. Private by design, not just by policy.</p>
+</div>
+</div>
+<div class="flex items-start gap-4 group">
+<div class="w-12 h-12 shrink-0 rounded-2xl bg-surface-container flex items-center justify-center group-hover:bg-primary-container transition-colors">
+<span class="material-symbols-outlined text-primary" style="">security</span>
+</div>
+<div>
+<h3 class="font-headline font-semibold text-on-surface" style="">Biometric Armor</h3>
+<p class="text-on-surface-variant text-sm" style="">Locked behind your FaceID or Fingerprint. Even if your phone is unlocked, your vault stays closed.</p>
+</div>
+</div>
+</div>
+<!-- Action Area -->
+<div class="pt-6 flex flex-col sm:flex-row gap-4">
+<button class="px-10 py-5 bg-gradient-to-br from-primary to-primary-dim text-on-primary rounded-xl font-headline font-bold text-lg flex items-center justify-center gap-3 transform active:scale-95 transition-all duration-200" style="">Continue<span class="material-symbols-outlined" style="">arrow_forward</span>
+</button>
+<button class="px-8 py-5 text-primary font-headline font-semibold hover:bg-surface-container-low rounded-xl transition-colors" style="">
+                        Learn about security
+                    </button>
+</div>
+</div>
+</div>
+<!-- Tonal Layered "Bento" Moments for Trust -->
+<div class="mt-24 w-full max-w-5xl grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="p-8 rounded-lg bg-surface-container-low flex flex-col gap-4">
+<div class="w-10 h-10 rounded-full bg-secondary-fixed flex items-center justify-center">
+<span class="material-symbols-outlined text-on-secondary-fixed text-xl" style="">database</span>
+</div>
+<h4 class="font-headline font-bold text-on-surface" style="">Local Storage</h4>
+<p class="text-on-surface-variant text-sm leading-relaxed" style="">Encrypted SQLite database living exclusively in your device's secure enclave.</p>
+</div>
+<div class="p-8 rounded-lg bg-surface-container-high flex flex-col gap-4">
+<div class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container text-xl" style="">sync_disabled</span>
+</div>
+<h4 class="font-headline font-bold text-on-surface" style="">No Syncing</h4>
+<p class="text-on-surface-variant text-sm leading-relaxed" style="">We intentionally removed cloud sync to eliminate the primary vector for data breaches.</p>
+</div>
+<div class="p-8 rounded-lg bg-surface-container flex flex-col gap-4">
+<div class="w-10 h-10 rounded-full bg-tertiary-fixed flex items-center justify-center">
+<span class="material-symbols-outlined text-on-tertiary-container text-xl" style="">policy</span>
+</div>
+<h4 class="font-headline font-bold text-on-surface" style="">Open Logic</h4>
+<p class="text-on-surface-variant text-sm leading-relaxed" style="">Our parsing rules are transparent. You see exactly what the app sees and how it sorts.</p>
+</div>
+</div>
+<!-- Minimalist Footer -->
+<footer class="mt-24 text-on-surface-variant text-sm flex flex-col items-center gap-4">
+<div class="flex items-center gap-2 opacity-50">
+<div class="w-2 h-2 rounded-full bg-tertiary"></div>
+<span class="" style="">Encrypted with AES-256</span>
+</div>
+<p class="" style="">© 2024 Indigo Vault. Your privacy is our architecture.</p>
+</footer>
+</main>
+<!-- Content-specific Decorative Background Elements -->
+<div class="fixed top-[-10%] right-[-10%] w-[40vw] h-[40vw] rounded-full bg-primary/5 blur-[120px] pointer-events-none -z-10"></div>
+<div class="fixed bottom-[-10%] left-[-10%] w-[30vw] h-[30vw] rounded-full bg-secondary/5 blur-[100px] pointer-events-none -z-10"></div>
+</body></html>

@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { Transaction } from '../types/Transaction';
 import { TxCategory } from '../modules/LeapModule';
+import { ThemeMode } from '../theme';
 
 interface Store {
   transactions: Transaction[];
@@ -31,6 +32,9 @@ interface Store {
   setSmsTotalCount: (v: number) => void;
   setTxFoundCount: (v: number) => void;
   setPendingCount: (v: number) => void;
+
+  themeMode: ThemeMode;
+  setThemeMode: (v: ThemeMode) => void;
 }
 
 export const useStore = create<Store>((set) => ({
@@ -62,4 +66,7 @@ export const useStore = create<Store>((set) => ({
   setSmsTotalCount: (smsTotalCount) => set({ smsTotalCount }),
   setTxFoundCount: (txFoundCount) => set({ txFoundCount }),
   setPendingCount: (pendingCount) => set({ pendingCount }),
+
+  themeMode: 'dark' as ThemeMode,
+  setThemeMode: (themeMode) => set({ themeMode }),
 }));

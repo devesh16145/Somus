@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Somus — Liquid OS Exploration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; font-family: 'Space Grotesk', system-ui, sans-serif; background: #ece9e2; }
+  * { box-sizing: border-box; }
+  .tweaks {
+    position: fixed; bottom: 24px; right: 24px; z-index: 1000;
+    background: #0a0a0c; color: #fff; border-radius: 16px;
+    padding: 14px 16px; font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px; display: flex; flex-direction: column; gap: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35); min-width: 280px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .tweaks h4 { margin: 0; font-size: 10px; letter-spacing: 1.8px; text-transform: uppercase; opacity: 0.55; font-weight: 600; }
+  .tweaks .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .tweaks button { background: transparent; border: 1px solid rgba(255,255,255,0.15); color: #fff; border-radius: 100px; padding: 6px 11px; font-size: 11px; cursor: pointer; font-family: inherit; font-weight: 500; }
+  .tweaks button.on { background: #7DFF9E; color: #051911; border-color: #7DFF9E; font-weight: 700; }
+  .tweaks .swatch { width: 22px; height: 22px; border-radius: 11px; border: 2px solid transparent; cursor: pointer; }
+  .tweaks .swatch.on { border-color: #fff; transform: scale(1.1); }
+  .tweaks .label { font-size: 10px; opacity: 0.45; font-family: 'JetBrains Mono', monospace; min-width: 50px; }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="icons.jsx"></script>
+<script type="text/babel" src="liquid-theme.jsx"></script>
+<script type="text/babel" src="liquid-dashboard.jsx"></script>
+<script type="text/babel" src="liquid-screens.jsx"></script>
+
+<script type="text/babel">
+const { useState } = React;
+
+function Bezel({ bg, dark, label, children }) {
+  const inkColor = dark ? '#fff' : '#0e110f';
+  return (
+    <div data-screen-label={label} style={{
+      width: 392, height: 820, borderRadius: 44, overflow: 'hidden',
+      background: bg, border: '10px solid rgba(20,20,24,0.85)',
+      boxShadow: '0 36px 100px rgba(0,0,0,0.22), 0 8px 22px rgba(0,0,0,0.12)',
+      display: 'flex', flexDirection: 'column', position: 'relative',
+    }}>
+      <div style={{ height: 36, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', fontSize: 13, fontWeight: 500, color: inkColor, flexShrink: 0, fontFamily: 'Space Grotesk, sans-serif', position: 'relative', zIndex: 2 }}>
+        <span>9:41</span>
+        <div style={{ position: 'absolute', left: '50%', top: 8, transform: 'translateX(-50%)', width: 20, height: 20, borderRadius: 10, background: '#222' }}/>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <svg width="14" height="10" viewBox="0 0 14 10"><path d="M7 10 0 3.5a9 9 0 0 1 14 0L7 10Z" fill={inkColor}/></svg>
+          <svg width="16" height="10" viewBox="0 0 16 10"><rect x="0" y="0" width="13" height="9" rx="2" stroke={inkColor} fill="none"/><rect x="2" y="2" width="8" height="5" fill={inkColor}/><rect x="14" y="3" width="2" height="4" fill={inkColor}/></svg>
+        </div>
+      </div>
+      <div style={{ flex: 1, overflow: 'auto', position: 'relative' }}>{children}</div>
+      <div style={{ height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative', zIndex: 2 }}>
+        <div style={{ width: 110, height: 4, borderRadius: 2, background: inkColor, opacity: 0.55 }}/>
+      </div>
+    </div>
+  );
+}
+
+const SCREENS = [
+  { id: 'onboarding',   label: 'Onboarding · Model download',  Cmp: LiquidOSOnboarding },
+  { id: 'dash',         label: 'Dashboard',                     Cmp: LiquidOSDashboard, hero: true },
+  { id: 'transactions', label: 'Transactions',                  Cmp: LiquidOSTransactions },
+  { id: 'detail',       label: 'Transaction detail',            Cmp: LiquidOSDetail },
+  { id: 'settings',     label: 'Settings',                      Cmp: LiquidOSSettings },
+];
+
+const HERO_LIST = [
+  { id: 'editorial', label: 'Editorial', sub: 'Fraunces · single moment' },
+  { id: 'blob',      label: 'Blob',      sub: 'Original gradient hero' },
+  { id: 'ledger',    label: 'Bubbles',   sub: 'Big sum + cat orbs' },
+];
+
+function App() {
+  const [theme, setTheme] = useState('dark');
+  const [accent, setAccent] = useState(LIQUID_ACCENTS[0]);
+  const [hero, setHero] = useState('editorial');
+
+  const t = LIQUID_THEMES[theme];
+
+  return (
+    <>
+      <DesignCanvas>
+        <div style={{ padding: '20px 60px 28px' }}>
+          <div style={{ fontSize: 12, letterSpacing: 2.5, textTransform: 'uppercase', color: 'rgba(60,50,40,0.55)' }}>Somus · Liquid OS direction</div>
+          <div style={{ fontSize: 38, fontWeight: 600, letterSpacing: -1, color: 'rgba(40,30,20,0.9)', marginTop: 4, fontFamily: 'Space Grotesk, sans-serif' }}>
+            Liquid OS — full exploration
+          </div>
+          <div style={{ fontSize: 15, color: 'rgba(60,50,40,0.65)', marginTop: 6, maxWidth: 820, lineHeight: 1.5 }}>
+            Light & dark variants of the same system. Five screens (Onboarding → Dashboard → Transactions → Detail → Settings),
+            three hero treatments for the dashboard, and four interchangeable accents.
+            Use the <b>Tweaks</b> panel bottom-right to swap any of them — every screen reflows live.
+          </div>
+          <DCPostIt top={20} right={80} rotate={3} width={220}>
+            Light mode is a warm off-white (#f6f5f0), not pure white — keeps the green accent vivid without the clinical glare of an OLED-on-paper effect.
+          </DCPostIt>
+        </div>
+
+        <DCSection title={`Liquid OS · ${theme === 'dark' ? 'Dark' : 'Light'}`} subtitle={`Accent: ${accent.id} · Hero: ${hero}`}>
+          {SCREENS.map(s => (
+            <DCArtboard key={s.id} label={s.label} width={392} height={820} style={{ borderRadius: 44, boxShadow: 'none' }}>
+              <Bezel bg={t.bg} dark={theme === 'dark'} label={`Liquid · ${s.label}`}>
+                {React.createElement(s.Cmp, { theme, accent, ...(s.hero ? { hero } : {}) })}
+              </Bezel>
+            </DCArtboard>
+          ))}
+        </DCSection>
+
+        <div style={{ padding: '40px 60px', maxWidth: 900 }}>
+          <div style={{ fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(60,50,40,0.45)', fontWeight: 600 }}>Notes</div>
+          <ul style={{ fontSize: 14, color: 'rgba(60,50,40,0.75)', lineHeight: 1.65, paddingLeft: 18 }}>
+            <li><b>Theme tokens.</b> Single source of truth (<code>liquid-theme.jsx</code>) — surfaces, ink, mute, rule, accent-glow. Both modes use the same accent at the same chroma.</li>
+            <li><b>Hero variants.</b> <i>Editorial</i> borrows Fraunces from Direction 01 for one big moment; <i>Blob</i> is the original gradient card; <i>Bubbles</i> stacks a big sum + horizontal category orbs.</li>
+            <li><b>What's still missing.</b> Empty states, the SMS-permission grant flow, the import-progress mid-state, edit-category bottom sheet, micro-interactions.</li>
+          </ul>
+        </div>
+      </DesignCanvas>
+
+      {/* Tweaks panel */}
+      <div className="tweaks">
+        <div>
+          <h4>Theme</h4>
+          <div className="row" style={{ marginTop: 6 }}>
+            {['dark', 'light'].map(m => (
+              <button key={m} className={theme === m ? 'on' : ''} onClick={() => setTheme(m)}>{m}</button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <h4>Accent</h4>
+          <div className="row" style={{ marginTop: 6 }}>
+            {LIQUID_ACCENTS.map(a => (
+              <div key={a.id}
+                   className={'swatch' + (accent.id === a.id ? ' on' : '')}
+                   style={{ background: a.v }}
+                   onClick={() => setAccent(a)}/>
+            ))}
+            <span style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', opacity: 0.5, marginLeft: 6 }}>{accent.id}</span>
+          </div>
+        </div>
+        <div>
+          <h4>Dashboard hero</h4>
+          <div className="row" style={{ marginTop: 6, flexDirection: 'column', alignItems: 'stretch', gap: 5 }}>
+            {HERO_LIST.map(h => (
+              <button key={h.id} className={hero === h.id ? 'on' : ''} onClick={() => setHero(h.id)} style={{ textAlign: 'left', padding: '8px 12px' }}>
+                <div style={{ fontWeight: 600 }}>{h.label}</div>
+                <div style={{ fontSize: 9, opacity: 0.7, marginTop: 1, fontFamily: 'JetBrains Mono, monospace' }}>{h.sub}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

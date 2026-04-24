@@ -18,11 +18,15 @@ import TransactionsScreen from './screens/TransactionsScreen';
 import TransactionDetailScreen from './screens/TransactionDetailScreen';
 import SubscriptionsScreen from './screens/SubscriptionsScreen';
 import GoalsScreen from './screens/GoalsScreen';
+import BudgetScreen from './screens/BudgetScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import AiManagementScreen from './screens/AiManagementScreen';
 import SmsPermissionsScreen from './screens/SmsPermissionsScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
-import { AddTransactionScreen, AddSubscriptionScreen, AddGoalScreen } from './components/ActionViews';
+import { AddTransactionScreen, AddSubscriptionScreen } from './components/ActionViews';
+import AddGoalScreen from './screens/AddGoalScreen';
+import AddBudgetScreen from './screens/AddBudgetScreen';
+import { BudgetRepository } from './database/BudgetRepository';
 
 export type RootStackParams = {
   Onboarding: undefined;
@@ -31,6 +35,8 @@ export type RootStackParams = {
   AddTransaction: undefined;
   AddSubscription: undefined;
   AddGoal: undefined;
+  AddBudget: undefined | { budget: any };
+  Settings: undefined;
   AiManagement: undefined;
   SmsPermissions: undefined;
   Notifications: undefined;
@@ -39,9 +45,9 @@ export type RootStackParams = {
 export type TabParams = {
   Dashboard: undefined;
   Transactions: undefined;
+  Budget: undefined;
   Subscriptions: undefined;
   Goals: undefined;
-  Settings: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParams>();
@@ -98,6 +104,17 @@ function TabNavigator() {
         }}
       />
       <Tab.Screen
+        name="Budget"
+        component={BudgetScreen}
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ alignItems: 'center', justifyContent: 'center', backgroundColor: focused ? alpha(accent.v, 0.15) : 'transparent', borderRadius: 20, paddingHorizontal: focused ? 18 : 0, paddingVertical: focused ? 8 : 0 }}>
+              <LiquidIcon name="target" color={focused ? accent.v : color} size={focused ? 24 : 22} strokeWidth={focused ? 2 : 1.7} />
+            </View>
+          ),
+        }}
+      />
+      <Tab.Screen
         name="Subscriptions"
         component={SubscriptionsScreen}
         options={{
@@ -119,29 +136,20 @@ function TabNavigator() {
           ),
         }}
       />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center', justifyContent: 'center', backgroundColor: focused ? alpha(accent.v, 0.15) : 'transparent', borderRadius: 20, paddingHorizontal: focused ? 18 : 0, paddingVertical: focused ? 8 : 0 }}>
-              <LiquidIcon name="cog" color={focused ? accent.v : color} size={focused ? 24 : 22} strokeWidth={focused ? 2 : 1.7} />
-            </View>
-          ),
-        }}
-      />
     </Tab.Navigator>
   );
 }
 
 export default function App() {
-  const { setModelLoaded, setTransactions, setPendingCount, themeMode } = useStore();
+  const { setModelLoaded, setTransactions, setPendingCount, setActiveBudget, themeMode } = useStore();
 
   useEffect(() => {
     try { initDb(); } catch (e) { console.error('DB init failed', e); }
 
     const txns = TransactionRepository.getAll(200);
     setTransactions(txns);
+
+    try { setActiveBudget(BudgetRepository.getActive()); } catch {}
 
     const refreshPending = async () => {
       try {
@@ -189,6 +197,8 @@ export default function App() {
           <Stack.Screen name="AddTransaction" component={AddTransactionScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="AddSubscription" component={AddSubscriptionScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="AddGoal" component={AddGoalScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="AddBudget" component={AddBudgetScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="Settings" component={SettingsScreen} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="AiManagement" component={AiManagementScreen} />
           <Stack.Screen name="SmsPermissions" component={SmsPermissionsScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />

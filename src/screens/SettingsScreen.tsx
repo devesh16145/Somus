@@ -51,8 +51,6 @@ export default function SettingsScreen() {
       return;
     }
     const periodObj = PERIODS.find(p => p.value === selectedPeriod)!;
-    
-    // Quick custom date fallback (mocked logic for UI)
     const days = selectedPeriod === 'custom' ? customDays : periodObj.days;
 
     const end = Date.now();
@@ -90,35 +88,7 @@ export default function SettingsScreen() {
         
         {/* Header */}
         <View style={s.header}>
-           <TouchableOpacity>
-             <LiquidIcon name="arrowRt" size={24} color={aink} style={{ transform: [{ rotate: '180deg' }] }} />
-           </TouchableOpacity>
            <Text style={s.headerTitle}>Settings</Text>
-           <TouchableOpacity>
-             <LiquidIcon name="dots" size={24} color={aink} style={{ transform: [{ rotate: '90deg' }] }} />
-           </TouchableOpacity>
-        </View>
-
-        {/* Profile Card */}
-        <View style={[s.card, s.profileWrap]}>
-           <View style={s.profileImgFrame}>
-              <View style={s.profileImgDummy}>
-                 <LiquidIcon name="home" color={t.bg} size={28} />
-              </View>
-              <View style={s.profileBadge}>
-                 <LiquidIcon name="check" size={10} color={t.bg} strokeWidth={3} />
-              </View>
-           </View>
-           <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                 <Text style={{ fontFamily: font.display, fontSize: 24, fontWeight: '500', color: t.ink, letterSpacing: -0.5 }}>Devesh</Text>
-                 <View style={{ backgroundColor: '#ecfccb', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                    <Text style={{ fontFamily: font.monoBold, fontSize: 10, color: '#4d7c0f' }}>VAULT PRO</Text>
-                 </View>
-              </View>
-              <Text style={{ fontFamily: font.ui, fontSize: 13, color: t.inkDim, marginBottom: 4 }}>devesh.sharma@sanctuary.io</Text>
-              <Text style={{ fontFamily: font.uiBold, fontSize: 12, color: aink }}>Stewardship Member since Jan 2024</Text>
-           </View>
         </View>
 
         {/* Local AI Management */}
@@ -136,16 +106,16 @@ export default function SettingsScreen() {
            
            <View style={{ flexDirection: 'row', gap: 12 }}>
               <View style={s.statsPill}>
-                 <Text style={s.statsLabel}>On-Device Storage</Text>
+                 <Text style={s.statsLabel}>Transactions</Text>
                  <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
-                   <Text style={s.statsMain}>1.2 GB</Text>
-                   <Text style={s.statsSub}> / 5GB</Text>
+                   <Text style={s.statsMain}>{txCount.toLocaleString()}</Text>
+                   <Text style={s.statsSub}> on device</Text>
                  </View>
               </View>
               <View style={s.statsPill}>
                  <Text style={s.statsLabel}>Status</Text>
                  <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
-                   <Text style={[s.statsMain, { color: '#4d7c0f' }]}>{modelLoaded ? 'Optimized' : 'Offline'}</Text>
+                   <Text style={[s.statsMain, { color: modelLoaded ? '#4d7c0f' : t.mute }]}>{modelLoaded ? 'Loaded' : 'Not loaded'}</Text>
                  </View>
               </View>
            </View>
@@ -233,8 +203,8 @@ export default function SettingsScreen() {
 
         {/* Footer */}
         <View style={{ alignItems: 'center', marginTop: 40, marginBottom: 20 }}>
-           <Text style={{ fontFamily: font.monoBold, fontSize: 10, color: t.mute, letterSpacing: 0.5, marginBottom: 6 }}>SOMUS VAULT • V2.4.0 (STABLE)</Text>
-           <Text style={{ fontFamily: font.ui, fontSize: 11, color: alpha(t.mute, 0.7) }}>End-to-end encrypted financial sanctuary</Text>
+           <Text style={{ fontFamily: font.monoBold, fontSize: 10, color: t.mute, letterSpacing: 0.5, marginBottom: 6 }}>v1.0.0</Text>
+           <Text style={{ fontFamily: font.ui, fontSize: 11, color: alpha(t.mute, 0.7) }}>Private · on-device</Text>
         </View>
 
       </ScrollView>
@@ -264,15 +234,10 @@ function SettingRow({ t, icon, name, sub, badge, badgeColor, last = false, onPre
 
 function getStyles(t: any, aink: string, mode: ThemeMode) {
   return StyleSheet.create({
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
+    header: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
     headerTitle: { fontFamily: font.uiBold, fontSize: 18, color: aink },
 
     card: { marginHorizontal: 20, marginBottom: 16, padding: 20, backgroundColor: t.surface, borderRadius: 28, borderWidth: 1, borderColor: t.rule },
-    
-    profileWrap: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-    profileImgFrame: { width: 72, height: 72, borderRadius: 36, backgroundColor: alpha(accent.v, 0.2), alignItems: 'center', justifyContent: 'center' },
-    profileImgDummy: { width: 64, height: 64, borderRadius: 32, backgroundColor: t.ink, alignItems: 'center', justifyContent: 'center' },
-    profileBadge: { position: 'absolute', bottom: 0, right: 0, width: 22, height: 22, borderRadius: 11, backgroundColor: aink, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: t.surface },
 
     statsPill: { flex: 1, backgroundColor: t.bg, borderRadius: 20, padding: 16 },
     statsLabel: { fontFamily: font.ui, fontSize: 11, color: t.mute },

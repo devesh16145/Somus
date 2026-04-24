@@ -15,6 +15,7 @@ import { RootStackParams } from '../App';
 import { themes, accent, accentInk, font, alpha, ThemeMode } from '../theme';
 import LiquidIcon, { CAT_ICON } from '../components/LiquidIcons';
 import { FAB } from '../components/ActionViews';
+import { StaggerFade } from '../components/VaultAnimations';
 
 type Nav = NativeStackNavigationProp<RootStackParams>;
 
@@ -219,12 +220,14 @@ export default function TransactionsScreen() {
                 <Text style={s.daySpend}>~{formatCurrency(spend, ccy)} spent</Text>
               </View>
               {txns.map((tx, i) => (
-                <TxListRow
-                  key={tx.id} tx={tx} t={t} aink={aink} index={i}
-                  selecting={selecting} isSelected={selected.has(tx.id)}
-                  onPress={() => selecting ? toggleSelect(tx.id) : nav.navigate('TransactionDetail', { transactionId: tx.id })}
-                  onLongPress={() => { if (!selecting) onLongPress(tx.id); }}
-                />
+                <StaggerFade key={tx.id} index={i}>
+                  <TxListRow
+                    tx={tx} t={t} aink={aink} index={i}
+                    selecting={selecting} isSelected={selected.has(tx.id)}
+                    onPress={() => selecting ? toggleSelect(tx.id) : nav.navigate('TransactionDetail', { transactionId: tx.id })}
+                    onLongPress={() => { if (!selecting) onLongPress(tx.id); }}
+                  />
+                </StaggerFade>
               ))}
             </View>
           );
@@ -266,7 +269,7 @@ function TxListRow({ tx, t, aink, index, selecting, isSelected, onPress, onLongP
           {tx.merchant || tx.sender || 'Unknown'}
         </Text>
         <Text style={{ fontFamily: font.mono, fontSize: 10, color: t.mute, marginTop: 3 }} numberOfLines={1}>
-          {tx.sender.toLowerCase()} · {tx.city?.toLowerCase() ?? 'somewhere'}
+          {tx.sender.toLowerCase()}
         </Text>
       </View>
       <View style={{ alignItems: 'flex-end' }}>

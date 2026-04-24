@@ -26,6 +26,33 @@ export function initDb(): void {
     last_sync_ts INTEGER DEFAULT 0, total_processed INTEGER DEFAULT 0
   )`);
   db.execute(`INSERT OR IGNORE INTO sync_state(id) VALUES(1)`);
+
+  db.execute(`CREATE TABLE IF NOT EXISTS goals (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    template TEXT NOT NULL DEFAULT 'custom',
+    target_amount REAL NOT NULL,
+    saved_amount REAL DEFAULT 0,
+    currency TEXT DEFAULT 'INR',
+    priority TEXT DEFAULT 'medium',
+    is_primary INTEGER DEFAULT 0,
+    icon TEXT DEFAULT 'disc',
+    metadata TEXT,
+    created_at INTEGER NOT NULL,
+    completed_at INTEGER
+  )`);
+
+  db.execute(`CREATE TABLE IF NOT EXISTS budgets (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    monthly_limit REAL NOT NULL,
+    currency TEXT DEFAULT 'INR',
+    category_caps TEXT,
+    exclude_transfers INTEGER DEFAULT 1,
+    exclude_refunds INTEGER DEFAULT 1,
+    is_active INTEGER DEFAULT 1,
+    created_at INTEGER NOT NULL
+  )`);
 }
 
 

@@ -35,5 +35,3 @@ export const LeapModule = {
 export const MODELS = {
   DEFAULT: { slug: 'somus-lfm-1.2b-sms', quant: 'q4_k_m', sizeMb: 700 },
 } as const;
-
-

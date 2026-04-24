@@ -2,6 +2,8 @@
 // ─────────────────────────────────────────────────────────────
 import { create } from 'zustand';
 import { Transaction } from '../types/Transaction';
+import { Goal } from '../types/Goal';
+import { Budget } from '../types/Budget';
 import { TxCategory } from '../modules/LeapModule';
 import { ThemeMode } from '../theme';
 
@@ -35,6 +37,12 @@ interface Store {
 
   themeMode: ThemeMode;
   setThemeMode: (v: ThemeMode) => void;
+
+  goals: Goal[];
+  setGoals: (g: Goal[]) => void;
+
+  activeBudget: Budget | null;
+  setActiveBudget: (b: Budget | null) => void;
 }
 
 export const useStore = create<Store>((set) => ({
@@ -69,4 +77,10 @@ export const useStore = create<Store>((set) => ({
 
   themeMode: 'light' as ThemeMode,
   setThemeMode: (themeMode) => set({ themeMode }),
+
+  goals: [],
+  setGoals: (goals) => set({ goals }),
+
+  activeBudget: null,
+  setActiveBudget: (activeBudget) => set({ activeBudget }),
 }));

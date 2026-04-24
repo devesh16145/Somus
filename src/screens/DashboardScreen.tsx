@@ -11,11 +11,14 @@ import { useStore } from '../store';
 import { themes, accent, accentInk, font, sp, alpha, ThemeMode } from '../theme';
 import LiquidIcon, { CAT_ICON } from '../components/LiquidIcons';
 import { TransactionRepository } from '../database/TransactionRepository';
+import { BudgetRepository } from '../database/BudgetRepository';
+import { BudgetEngine } from '../services/BudgetEngine';
 import { SmsOrchestrator } from '../services/SmsOrchestrator';
 import { CATEGORY_LABELS, Transaction } from '../types/Transaction';
 import { TxCategory } from '../modules/LeapModule';
 import { RootStackParams } from '../App';
-import { FAB } from '../components/ActionViews';
+import { AnimatedNumber, StaggerFade, PressableScale } from '../components/VaultAnimations';
+import { MoneyFlow } from '../components/MoneyFlow';
 
 type Nav = NativeStackNavigationProp<RootStackParams>;
 
@@ -25,10 +28,11 @@ interface Metrics {
   monthIncome: number;
   categoryTotals: Record<string, number>;
   latestSubscription: Transaction | null;
+  totalSpend: number;
 }
 
 const emptyMetrics: Metrics = {
-  monthSpend: 0, monthIncome: 0, categoryTotals: {}, latestSubscription: null,
+  monthSpend: 0, monthIncome: 0, categoryTotals: {}, latestSubscription: null, totalSpend: 0,
 };
 
 export default function DashboardScreen() {
@@ -38,6 +42,7 @@ export default function DashboardScreen() {
     syncing, setSyncing, setSyncProgress,
     pendingCount, setPendingCount,
     themeMode, setThemeMode,
+    activeBudget, setActiveBudget,
   } = useStore();
 
   const t = themes[themeMode];
@@ -52,6 +57,7 @@ export default function DashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       loadData();
+      try { setActiveBudget(BudgetRepository.getActive()); } catch {}
       SmsOrchestrator.getPendingCount().then(setPendingCount).catch(() => {});
     }, [transactions]),
   );
@@ -67,7 +73,7 @@ export default function DashboardScreen() {
     const monthIncome = monthTxns.filter(tx => tx.type === 'CREDIT').reduce((s, tx) => s + tx.amount, 0);
     const latestSubscription = TransactionRepository.getLatestByCategory('SUBSCRIPTION');
 
-    setMetrics({ monthSpend, monthIncome, categoryTotals: thisMonthTotals, latestSubscription });
+    setMetrics({ monthSpend, monthIncome, categoryTotals: thisMonthTotals, latestSubscription, totalSpend: monthSpend });
   }
 
   async function onRefresh() {
@@ -105,22 +111,46 @@ export default function DashboardScreen() {
     }
   }
 
+  function handleAddPress() {
+    Alert.alert('Create New', 'What would you like to add?', [
+      { text: 'Transaction', onPress: () => nav.navigate('AddTransaction') },
+      { text: 'Subscription', onPress: () => nav.navigate('AddSubscription') },
+      { text: 'Goal', onPress: () => nav.navigate('AddGoal') },
+      { text: 'Cancel', style: 'cancel' }
+    ]);
+  }
+
   // Derived
-  const currency = dominantCurrency(transactions);
+  const currency = activeBudget?.currency ?? dominantCurrency(transactions);
   const totalCatSpend = Object.values(metrics.categoryTotals).reduce((s, v) => s + v, 0);
   const topCategories = Object.entries(metrics.categoryTotals)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 5) as [TxCategory, number][];
-  const recentTxns = transactions.slice(0, 3);
+  const recent = transactions.slice(0, 3);
   const net = metrics.monthIncome - metrics.monthSpend;
-  const budget = metrics.monthIncome > 0 ? metrics.monthIncome : Math.max(metrics.monthSpend * 1.25, 1);
-  const drawnPct = Math.min(Math.round((metrics.monthSpend / budget) * 100), 999);
+
+  const budgetStatus = activeBudget ? BudgetEngine.computeStatus(activeBudget, transactions) : null;
+  const budgetLimit = activeBudget?.monthlyLimit ?? (metrics.monthIncome > 0 ? metrics.monthIncome : Math.max(metrics.monthSpend * 1.25, 1));
+  const drawnPct = Math.min(Math.round((metrics.monthSpend / budgetLimit) * 100), 999);
+
+  const capStatusByCat: Partial<Record<TxCategory, 'near' | 'over'>> = {};
+  if (budgetStatus) {
+    for (const c of budgetStatus.perCategory) {
+      if (c.status === 'near' || c.status === 'over') capStatusByCat[c.category] = c.status;
+    }
+  }
+
+  const paceColor = budgetStatus
+    ? (budgetStatus.pace === 'overspending' ? '#E06B4A' : budgetStatus.pace === 'underspending' ? aink : aink)
+    : t.mute;
+  const paceLabel = budgetStatus
+    ? (budgetStatus.pace === 'overspending' ? 'overspending' : budgetStatus.pace === 'underspending' ? 'underspending' : 'on track')
+    : '';
 
   const glowOpacity = themeMode === 'dark' ? 0.18 : 0.35;
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
-      {/* ── Top-left radial accent glow ── */}
       <Svg
         width="100%"
         height={520}
@@ -137,20 +167,35 @@ export default function DashboardScreen() {
       </Svg>
 
       <SafeAreaView style={s.container}>
-      {/* ── Top strip ── */}
       <View style={s.topBar}>
         <View style={s.topBarLeft}>
-          <View style={[s.logoDot, { backgroundColor: accent.v }]}>
-            <Text style={[s.logoLetter, { color: '#051911' }]}>s</Text>
-          </View>
-          <Text style={[s.brand, { color: t.ink }]}>somus</Text>
-          <Text style={[s.version, { color: t.mute }]}>v1.0</Text>
+          <View style={{ width: 8 }} />
         </View>
         <View style={s.topBarRight}>
           <View style={[s.offlineChip, { backgroundColor: t.chipBg }]}>
             <LiquidIcon name="wifiOff" size={11} color={t.inkDim} strokeWidth={1.8} />
             <Text style={[s.offlineText, { color: t.inkDim }]}>offline</Text>
           </View>
+          <TouchableOpacity
+            style={[s.themeBtn, { backgroundColor: t.surface }]}
+            onPress={async () => {
+              setRefreshing(true);
+              try {
+                const count = await SmsOrchestrator.getPendingCount();
+                setPendingCount(count);
+                const fresh = TransactionRepository.getAll(200);
+                setTransactions(fresh);
+                loadData();
+              } catch { /* */ }
+              setRefreshing(false);
+            }}
+            activeOpacity={0.7}>
+            <LiquidIcon
+              name="refresh"
+              size={14}
+              color={refreshing ? accent.v : t.inkDim}
+            />
+          </TouchableOpacity>
           <TouchableOpacity
             style={[s.themeBtn, { backgroundColor: t.surface }]}
             onPress={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
@@ -160,6 +205,12 @@ export default function DashboardScreen() {
               size={14}
               color={t.inkDim}
             />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.themeBtn, { backgroundColor: t.surface }]}
+            onPress={() => nav.navigate('Settings')}
+            activeOpacity={0.7}>
+            <LiquidIcon name="cog" size={14} color={t.inkDim} />
           </TouchableOpacity>
         </View>
       </View>
@@ -171,7 +222,6 @@ export default function DashboardScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accent.v} />
         }>
 
-        {/* ── Editorial Hero ── */}
         <View style={s.hero}>
           <View style={s.heroTop}>
             <Text style={[s.heroMonth, { color: t.mute }]}>
@@ -185,34 +235,69 @@ export default function DashboardScreen() {
 
           <View style={s.heroAmountRow}>
             <Text style={[s.heroCurrency, { color: t.inkDim }]}>{currencySymbol(currency)}</Text>
-            <Text style={[s.heroAmount, { color: t.ink }]}>
-              {Math.round(metrics.monthSpend).toLocaleString()}
-            </Text>
+            <AnimatedNumber
+             style={[s.balanceText, { color: t.ink }]}
+             value={metrics.totalSpend}
+             formatter={(val) => Math.round(val).toLocaleString()}
+             delay={150}
+            />
           </View>
 
-          <Text style={[s.heroSubtitle, { color: t.inkDim }]}>
-            of {formatAmount(budget, currency)} budget ·{' '}
-            <Text style={{ color: aink, fontFamily: font.uiBold }}>
-              {net >= 0 ? '+' : '\u2212'}{formatAmount(Math.abs(net), currency)}
-            </Text>{' '}
-            net
-          </Text>
+          {budgetStatus ? (
+            <Text style={[s.heroSubtitle, { color: t.inkDim }]}>
+              {formatAmount(budgetStatus.remaining, currency)} left ·{' '}
+              <Text style={{ color: aink, fontFamily: font.uiBold }}>
+                ~{formatAmount(Math.max(0, budgetStatus.perDayAvailable), currency)}/day
+              </Text>{' '}
+              for {Math.max(0, budgetStatus.daysInMonth - budgetStatus.daysElapsed)} days
+            </Text>
+          ) : (
+            <Text style={[s.heroSubtitle, { color: t.inkDim }]}>
+              of {formatAmount(budgetLimit, currency)} est. ·{' '}
+              <Text style={{ color: aink, fontFamily: font.uiBold }}>
+                {net >= 0 ? '+' : '\u2212'}{formatAmount(Math.abs(net), currency)}
+              </Text>{' '}
+              net
+            </Text>
+          )}
 
-          {/* Budget progress bar */}
           <View style={[s.budgetBarBg, { backgroundColor: t.chipBg }]}>
-            <View style={[s.budgetBarFill, { width: `${Math.min(100, (metrics.monthSpend / budget) * 100)}%` }]} />
+            <View style={[s.budgetBarFill, { width: `${Math.min(100, (metrics.monthSpend / budgetLimit) * 100)}%`, backgroundColor: budgetStatus?.pace === 'overspending' ? '#E06B4A' : accent.v }]} />
           </View>
           <View style={s.budgetLabels}>
-            <Text style={[s.budgetLabel, { color: t.mute }]}>
-              {drawnPct}% drawn
-            </Text>
+            {budgetStatus ? (
+              <Text style={[s.budgetLabel, { color: paceColor }]}>
+                Day {budgetStatus.daysElapsed} of {budgetStatus.daysInMonth} · {paceLabel}
+              </Text>
+            ) : (
+              <Text style={[s.budgetLabel, { color: t.mute }]}>{drawnPct}% drawn</Text>
+            )}
             <Text style={[s.budgetLabel, { color: t.mute }]}>
               {daysLeftInMonth()} days remaining
             </Text>
           </View>
+
+          {!activeBudget && (
+            <TouchableOpacity
+              onPress={() => nav.navigate('Main', { screen: 'Budget' } as any)}
+              activeOpacity={0.7}
+              style={[s.setBudgetChip, { backgroundColor: alpha(accent.v, 0.14) }]}>
+              <LiquidIcon name="target" size={11} color={accent.v} />
+              <Text style={{ fontFamily: font.monoBold, fontSize: 11, color: aink }}>
+                Set a budget →
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        {/* ── Pending banner ── */}
+        <MoneyFlow
+          income={metrics.monthIncome}
+          budget={activeBudget?.monthlyLimit ?? null}
+          expense={metrics.monthSpend}
+          currency={currency}
+          themeMode={themeMode}
+        />
+
         {(pendingCount > 0 || processProgress) && (
           <PendingBanner
             t={t} aink={aink}
@@ -224,30 +309,38 @@ export default function DashboardScreen() {
           />
         )}
 
-        {/* ── Where it went — numbered ledger ── */}
         <View style={s.ledgerSection}>
           <View style={s.ledgerHeader}>
             <Text style={[s.ledgerTitle, { color: t.ink }]}>Where it went</Text>
             <Text style={[s.ledgerLink, { color: aink }]}>&gt; all_cats</Text>
           </View>
           <View style={[s.ledgerList, { borderTopColor: t.ruleStrong }]}>
-            {topCategories.length > 0 ? topCategories.map(([cat, amount], i) => {
+            {topCategories.length > 0 ? topCategories.map(([cat, amount]: any, idx: number) => {
               const pct = totalCatSpend > 0 ? (amount / totalCatSpend) * 100 : 0;
+              const capState = capStatusByCat[cat as TxCategory];
+              const dotColor = capState === 'over' ? '#E06B4A' : capState === 'near' ? '#D89A2A' : null;
               return (
-                <View key={cat} style={[s.ledgerRow, { borderBottomColor: t.rule }]}>
-                  <Text style={[s.ledgerNum, { color: t.mute }]}>{String(i + 1).padStart(2, '0')}</Text>
-                  <View style={[s.ledgerIcon, { backgroundColor: t.chipBg }]}>
-                    <LiquidIcon name={CAT_ICON[cat] ?? 'dots'} size={14} color={t.ink} />
-                  </View>
-                  <View style={s.ledgerMid}>
-                    <Text style={[s.ledgerCat, { color: t.ink }]}>{CATEGORY_LABELS[cat]}</Text>
-                    <View style={[s.ledgerBarBg, { backgroundColor: t.chipBg }]}>
-                      <View style={[s.ledgerBarFill, { width: `${pct * 3.4}%`, maxWidth: '100%' }]} />
+                <StaggerFade key={cat} index={idx}>
+                  <View style={s.ledgerRow}>
+                    <Text style={{ fontFamily: font.monoBold, fontSize: 13, color: t.mute, width: 24 }}>{String(idx + 1).padStart(2, '0')}</Text>
+                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: alpha(accent.v, 0.1), alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                      <LiquidIcon name={CAT_ICON[cat] ?? 'dots'} size={16} color={accent.v} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                        <Text style={{ fontFamily: font.uiBold, fontSize: 15, color: t.ink }}>{CATEGORY_LABELS[cat] || cat}</Text>
+                        {dotColor && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: dotColor }} />}
+                      </View>
+                      <View style={{ height: 4, backgroundColor: t.chipBg, borderRadius: 2, overflow: 'hidden' }}>
+                         <View style={{ width: `${pct}%`, height: '100%', backgroundColor: dotColor ?? accent.v, borderRadius: 2 }} />
+                      </View>
+                    </View>
+                    <View style={{ alignItems: 'flex-end', marginLeft: 16 }}>
+                      <Text style={{ fontFamily: font.uiBold, fontSize: 15, color: t.ink }}>{formatAmount(amount, currency)}</Text>
+                      <Text style={{ fontFamily: font.mono, fontSize: 10, color: t.mute, marginTop: 2 }}>{pct.toFixed(1)}%</Text>
                     </View>
                   </View>
-                  <Text style={[s.ledgerAmt, { color: t.ink }]}>{formatAmount(amount, currency)}</Text>
-                  <Text style={[s.ledgerPct, { color: t.mute }]}>{Math.round(pct)}%</Text>
-                </View>
+                </StaggerFade>
               );
             }) : (
               <View style={s.emptyBlock}>
@@ -257,42 +350,39 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* ── Recent quick-strip ── */}
         <View style={[s.recentCard, { backgroundColor: t.surface, borderColor: t.rule }]}>
           <View style={s.recentHeader}>
             <Text style={[s.recentTitle, { color: t.ink }]}>Recent</Text>
             <Text style={[s.recentSub, { color: t.mute }]}>last 24h</Text>
           </View>
-          {recentTxns.length > 0 ? recentTxns.map((tx, i) => (
-            <Pressable
-              key={tx.id}
-              onPress={() => nav.navigate('TransactionDetail', { transactionId: tx.id })}
-              style={[s.recentRow, i > 0 && { borderTopColor: t.rule, borderTopWidth: 1 }]}>
-              <View style={[s.recentIcon, { backgroundColor: t.chipBg }]}>
-                <LiquidIcon name={CAT_ICON[tx.category] ?? 'dots'} size={13} color={t.inkDim} />
-              </View>
-              <View style={s.recentMid}>
-                <Text style={[s.recentMerchant, { color: t.ink }]} numberOfLines={1}>{tx.merchant || tx.sender}</Text>
-                <Text style={[s.recentMeta, { color: t.mute }]}>{tx.sender.toLowerCase()} · {formatDate(tx.smsDate)}</Text>
-              </View>
-              <Text style={[s.recentAmount, { color: tx.type === 'CREDIT' ? aink : t.ink }]}>
-                {tx.type === 'CREDIT' ? '+' : '\u2212'}{formatAmount(tx.amount, tx.currencyCode)}
-              </Text>
-            </Pressable>
-          )) : (
+          {recent.length > 0 ? recent.map((tx: Transaction, idx: number) => {
+              const isCredit = tx.type === 'CREDIT';
+              return (
+                <StaggerFade key={tx.id} index={idx + 4}>
+                  <TouchableOpacity onPress={() => nav.navigate('TransactionDetail', { transactionId: tx.id })} activeOpacity={0.7} style={s.recentRow}>
+                    <View style={[s.recentIcon, { backgroundColor: t.chipBg }]}>
+                      <LiquidIcon name={CAT_ICON[tx.category] ?? 'dots'} size={18} color={t.mute} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: font.uiBold, fontSize: 15, color: t.ink, marginBottom: 2 }} numberOfLines={1}>{tx.merchant || tx.sender}</Text>
+                      <Text style={{ fontFamily: font.ui, fontSize: 12, color: t.mute }}>{new Date(tx.smsDate).toLocaleDateString([], { month: 'short', day: 'numeric' })} • {CATEGORY_LABELS[tx.category] || tx.category}</Text>
+                    </View>
+                    <Text style={{ fontFamily: font.monoBold, fontSize: 14, color: isCredit ? aink : t.ink }}>{isCredit ? '+' : '\u2212'}{formatAmount(tx.amount, tx.currencyCode)}</Text>
+                  </TouchableOpacity>
+                </StaggerFade>
+              );
+            }) : (
             <Text style={[s.emptyText, { color: t.mute }]}>No transactions yet.</Text>
           )}
         </View>
       </ScrollView>
       </SafeAreaView>
-      <FAB onPress={() => {
-        Alert.alert('Create New', 'What would you like to add?', [
-          { text: 'Transaction', onPress: () => nav.navigate('AddTransaction') },
-          { text: 'Subscription', onPress: () => nav.navigate('AddSubscription') },
-          { text: 'Goal', onPress: () => nav.navigate('AddGoal') },
-          { text: 'Cancel', style: 'cancel' }
-        ]);
-      }} />
+      <PressableScale 
+        style={{ position: 'absolute', bottom: 100, right: 24, width: 56, height: 56, borderRadius: 28, backgroundColor: accent.v, alignItems: 'center', justifyContent: 'center', elevation: 8, shadowColor: accent.v, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 10 }} 
+        onPress={handleAddPress}
+      >
+        <LiquidIcon name="plus" size={24} color="#FFF" strokeWidth={3} />
+      </PressableScale>
     </View>
   );
 }
@@ -358,15 +448,6 @@ function currencySymbol(currency: string): string {
   } catch { return currency; }
 }
 
-function formatDate(ms: number): string {
-  const d = new Date(ms);
-  const now = new Date();
-  const diff = Math.floor((now.getTime() - d.getTime()) / 86400000);
-  if (diff === 0) return `today, ${d.toLocaleTimeString('en', { hour: 'numeric', minute: '2-digit' })}`;
-  if (diff === 1) return 'yesterday';
-  return d.toLocaleDateString('en', { month: 'short', day: 'numeric' });
-}
-
 function daysLeftInMonth(): number {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate();
@@ -375,145 +456,48 @@ function daysLeftInMonth(): number {
 // ── Styles ────────────────────────────────────────────────────
 const s = StyleSheet.create({
   container: { flex: 1 },
-
-  // Top-left accent glow overlay
-  glowLayer: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0,
-  },
-
-  // Top bar — padding 14px 20px, no border
-  topBar: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
+  glowLayer: { position: 'absolute', top: 0, left: 0, right: 0 },
+  topBar: { paddingVertical: 14, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   topBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   topBarRight: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  logoDot: {
-    width: 26, height: 26, borderRadius: 13,
-    alignItems: 'center', justifyContent: 'center',
-    boxShadow: `0 0 14px ${alpha(accent.v, 0.5)}`,
-  },
-  logoLetter: { fontFamily: font.uiBold, fontSize: 13, letterSpacing: -0.5 },
-  brand: { fontFamily: font.uiBold, fontSize: 14, letterSpacing: -0.4 },
-  version: { fontFamily: font.mono, fontSize: 10, marginLeft: 4 },
-  offlineChip: {
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 100,
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-  },
+  offlineChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 100, flexDirection: 'row', alignItems: 'center', gap: 4 },
   offlineText: { fontFamily: font.mono, fontSize: 10 },
-  themeBtn: {
-    width: 32, height: 32, borderRadius: 16,
-    alignItems: 'center', justifyContent: 'center',
-  },
-
-  // Scroll: no horizontal padding — each section controls its own margin
+  themeBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   scroll: { paddingBottom: 120 },
-
-  // Hero — padding 28 22 22
   hero: { paddingTop: 28, paddingHorizontal: 22, paddingBottom: 22 },
-  heroTop: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-  },
-  heroMonth: {
-    fontFamily: font.uiBold,
-    fontSize: 10, letterSpacing: 2, textTransform: 'uppercase',
-  },
-  liveChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 100,
-  },
-  liveDot: {
-    width: 6, height: 6, borderRadius: 3,
-    boxShadow: `0 0 8px ${accent.v}`,
-  },
+  heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  heroMonth: { fontFamily: font.uiBold, fontSize: 10, letterSpacing: 2, textTransform: 'uppercase' },
+  liveChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 100 },
+  liveDot: { width: 6, height: 6, borderRadius: 3 },
   liveText: { fontFamily: font.mono, fontSize: 10 },
   heroAmountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 8 },
   heroCurrency: { fontFamily: font.ui, fontSize: 22 },
-  heroAmount: {
-    fontFamily: font.display,
-    fontSize: 78, letterSpacing: -3.5,
-    lineHeight: 85,
-    includeFontPadding: false,
-  },
-  heroSubtitle: {
-    fontFamily: font.displayItalic,
-    fontSize: 13, marginTop: 12, lineHeight: 20,
-  },
+  balanceText: { fontFamily: font.display, fontSize: 78, letterSpacing: -3.5, lineHeight: 85 },
+  heroSubtitle: { fontFamily: font.displayItalic, fontSize: 13, marginTop: 12, lineHeight: 20 },
   budgetBarBg: { height: 6, borderRadius: 3, overflow: 'hidden', marginTop: 18 },
-  budgetBarFill: {
-    height: '100%', borderRadius: 3,
-    backgroundColor: accent.v,
-    boxShadow: `0 0 12px ${alpha(accent.v, 0.5)}`,
-  },
-  budgetLabels: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    marginTop: 8,
-  },
+  budgetBarFill: { height: '100%', borderRadius: 3, backgroundColor: accent.v },
+  budgetLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
   budgetLabel: { fontFamily: font.mono, fontSize: 10 },
-
-  // Pending — margin 6 16 16, padding 14 14 14 16
-  pendingCard: {
-    marginTop: 6, marginBottom: 16, marginHorizontal: 16,
-    borderRadius: 20,
-    paddingTop: 14, paddingRight: 14, paddingBottom: 14, paddingLeft: 16,
-    borderWidth: 1,
+  setBudgetChip: {
+    marginTop: 14, alignSelf: 'flex-start',
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 100,
   },
+  pendingCard: { marginTop: 6, marginBottom: 16, marginHorizontal: 16, borderRadius: 20, paddingTop: 14, paddingRight: 14, paddingBottom: 14, paddingLeft: 16, borderWidth: 1 },
   pendingRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  pendingIcon: {
-    width: 38, height: 38, borderRadius: 12,
-    alignItems: 'center', justifyContent: 'center',
-  },
+  pendingIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   pendingTitle: { fontFamily: font.uiBold, fontSize: 13 },
   pendingSub: { fontFamily: font.mono, fontSize: 10, marginTop: 2 },
-  pendingBtn: {
-    borderRadius: 100, paddingHorizontal: 14, paddingVertical: 8,
-  },
+  pendingBtn: { borderRadius: 100, paddingHorizontal: 14, paddingVertical: 8 },
   pendingBtnText: { fontFamily: font.uiBold, fontSize: 12 },
   pendingBarBg: { height: 4, borderRadius: 2, overflow: 'hidden', marginTop: 12 },
   pendingBarFill: { height: '100%', borderRadius: 2, backgroundColor: accent.v },
-
-  // Ledger — padding 0 20
   ledgerSection: { paddingHorizontal: 20 },
-  ledgerHeader: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'baseline', marginBottom: 10,
-  },
+  ledgerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 },
   ledgerTitle: { fontFamily: font.uiBold, fontSize: 17, letterSpacing: -0.4 },
   ledgerLink: { fontFamily: font.mono, fontSize: 10 },
   ledgerList: { borderTopWidth: 1 },
-  ledgerRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 12, borderBottomWidth: 1,
-  },
-  ledgerNum: {
-    fontFamily: font.mono, fontSize: 10, width: 18,
-    fontVariant: ['tabular-nums'],
-  },
-  ledgerIcon: {
-    width: 28, height: 28, borderRadius: 8,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  ledgerMid: { flex: 1, minWidth: 0 },
-  ledgerCat: { fontFamily: font.ui, fontSize: 13 },
-  ledgerBarBg: { height: 2, borderRadius: 1, overflow: 'hidden', marginTop: 4 },
-  ledgerBarFill: {
-    height: '100%', borderRadius: 1,
-    backgroundColor: accent.v,
-    boxShadow: `0 0 8px ${alpha(accent.v, 0.5)}`,
-  },
-  ledgerAmt: {
-    fontFamily: font.monoBold,
-    fontSize: 13, fontVariant: ['tabular-nums'],
-    minWidth: 50, textAlign: 'right',
-  },
-  ledgerPct: {
-    fontFamily: font.mono,
-    fontSize: 10, width: 26, textAlign: 'right',
-  },
+  ledgerRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
 
   // Recent — margin 20 16 0, padding 14
   recentCard: {
@@ -535,14 +519,6 @@ const s = StyleSheet.create({
     width: 28, height: 28, borderRadius: 8,
     alignItems: 'center', justifyContent: 'center',
   },
-  recentMid: { flex: 1, minWidth: 0 },
-  recentMerchant: { fontFamily: font.ui, fontSize: 13 },
-  recentMeta: { fontFamily: font.mono, fontSize: 9, marginTop: 2 },
-  recentAmount: {
-    fontFamily: font.monoBold,
-    fontSize: 13, fontVariant: ['tabular-nums'],
-  },
-
   // Empty
   emptyBlock: { paddingVertical: sp.xxl, alignItems: 'center' },
   emptyText: { fontFamily: font.ui, fontSize: 12, textAlign: 'center' },

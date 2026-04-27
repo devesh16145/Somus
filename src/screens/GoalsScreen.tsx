@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
+import { LiquidDialog } from '../components/LiquidDialog';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { useFocusEffect } from '@react-navigation/native';
@@ -10,7 +11,7 @@ import LiquidIcon from '../components/LiquidIcons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParams } from '../App';
-import { FAB } from '../components/ActionViews';
+import { FAB, TopBar } from '../components/ActionViews';
 import { GoalRepository } from '../database/GoalRepository';
 import { Goal, currencySymbolFor, computeLoanProgress, LoanMeta } from '../types/Goal';
 
@@ -44,7 +45,7 @@ export default function GoalsScreen() {
   function handleAddFunds() {
     if (!addFundsModal) return;
     const amt = parseFloat(fundsAmount);
-    if (!amt || amt <= 0) { Alert.alert('Enter a valid amount'); return; }
+    if (!amt || amt <= 0) { LiquidDialog.alert('Enter a valid amount'); return; }
     GoalRepository.addFunds(addFundsModal.id, amt);
     setGoals(GoalRepository.getAll());
     setAddFundsModal(null);
@@ -57,13 +58,17 @@ export default function GoalsScreen() {
   }
 
   function handleDelete(g: Goal) {
-    Alert.alert('Delete Goal', `Remove "${g.name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => {
-        GoalRepository.delete(g.id);
-        setGoals(GoalRepository.getAll());
-      }},
-    ]);
+    LiquidDialog.show({
+      title: 'Delete Goal',
+      message: `Remove "${g.name}"?`,
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => {
+          GoalRepository.delete(g.id);
+          setGoals(GoalRepository.getAll());
+        }},
+      ],
+    });
   }
 
   const s = getStyles(t, aink);
@@ -77,23 +82,21 @@ export default function GoalsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }} edges={['top']}>
+      <TopBar />
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
 
-        {/* Header */}
-        <View style={s.header}>
-          <Text style={s.headerTitle}>Goals</Text>
-          <TouchableOpacity>
-            <LiquidIcon name="cog" size={24} color={aink} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={s.heroText}>
-          <Text style={s.heroTitle}>Your Aspirations</Text>
-          <Text style={s.heroSub}>
-            {goals.length > 0
-              ? `Tracking ${goals.length} goal${goals.length > 1 ? 's' : ''} toward financial freedom.`
-              : 'Start building toward your dreams. Add your first goal!'}
-          </Text>
+        <View style={s.hero}>
+          <Text style={s.heroLabel}>Your Aspirations</Text>
+          <View style={s.heroRow}>
+            <Text style={s.heroAmount}>
+              {goals.length > 0
+                ? `${Math.round(goals.reduce((sum, g) => sum + getProgress(g), 0) / goals.length)}%`
+                : '0'}
+            </Text>
+            <View style={s.heroPill}>
+              <Text style={s.heroPillText}>{goals.length} active</Text>
+            </View>
+          </View>
         </View>
 
         {/* ── Primary Goal Card ── */}
@@ -137,9 +140,12 @@ export default function GoalsScreen() {
               <Text style={{ fontFamily: font.mono, fontSize: 10, color: t.mute, textTransform: 'uppercase' }}>{primary.priority} priority</Text>
             </View>
 
-            <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+            <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
               <TouchableOpacity style={s.btnPrimary} onPress={() => { setAddFundsModal(primary); setFundsAmount(''); }}>
                 <Text style={s.btnPrimaryText}>Add Funds</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.btnSecondary} onPress={() => nav.navigate('AddGoal', { goalId: primary.id })}>
+                <Text style={s.btnSecondaryText}>Edit</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.btnSecondary} onPress={() => handleDelete(primary)}>
                 <Text style={s.btnSecondaryText}>Delete</Text>
@@ -169,6 +175,7 @@ export default function GoalsScreen() {
                 t={t}
                 onAddFunds={() => { setAddFundsModal(g); setFundsAmount(''); }}
                 onSetPrimary={() => handleSetPrimary(g)}
+                onEdit={() => nav.navigate('AddGoal', { goalId: g.id })}
                 onDelete={() => handleDelete(g)}
               />
             ))}
@@ -225,9 +232,9 @@ export default function GoalsScreen() {
 }
 
 // ── Goal Row Card ──
-function GoalRow({ goal, pct, t, onAddFunds, onSetPrimary, onDelete }: {
+function GoalRow({ goal, pct, t, onAddFunds, onSetPrimary, onEdit, onDelete }: {
   goal: Goal; pct: number; t: any;
-  onAddFunds: () => void; onSetPrimary: () => void; onDelete: () => void;
+  onAddFunds: () => void; onSetPrimary: () => void; onEdit: () => void; onDelete: () => void;
 }) {
   const iconMap: Record<string, string> = { home: 'home', car: 'car', plane: 'plane', shield: 'shield', bag: 'bag' };
   const iconName = iconMap[goal.icon] || 'disc';
@@ -260,9 +267,12 @@ function GoalRow({ goal, pct, t, onAddFunds, onSetPrimary, onDelete }: {
             {currencySymbolFor(goal.currency)} {Math.round(goal.targetAmount).toLocaleString()} TARGET
           </Text>
         </View>
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           <TouchableOpacity onPress={onAddFunds} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100, backgroundColor: alpha(accent.v, 0.15) }}>
             <Text style={{ fontFamily: font.monoBold, fontSize: 9, color: accent.v }}>+ FUNDS</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onEdit} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100, backgroundColor: t.chipBg }}>
+            <Text style={{ fontFamily: font.monoBold, fontSize: 9, color: t.inkDim }}>EDIT</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={onSetPrimary} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100, backgroundColor: t.chipBg }}>
             <Text style={{ fontFamily: font.monoBold, fontSize: 9, color: t.inkDim }}>★ PRIMARY</Text>
@@ -280,14 +290,17 @@ function getStyles(t: any, aink: string) {
   return StyleSheet.create({
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 10 },
     headerTitle: { fontFamily: font.uiBold, fontSize: 18, color: aink },
-    heroText: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 20 },
-    heroTitle: { fontFamily: font.display, fontSize: 32, color: t.ink, letterSpacing: -1, marginBottom: 6 },
-    heroSub: { fontFamily: font.ui, fontSize: 14, color: t.inkDim, lineHeight: 22, maxWidth: 280 },
+    hero: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 20 },
+    heroLabel: { fontFamily: font.uiBold, fontSize: 13, color: t.inkDim, letterSpacing: 0.5, marginBottom: 4 },
+    heroRow: { flexDirection: 'row', alignItems: 'center' },
+    heroAmount: { fontFamily: font.display, fontSize: 44, fontWeight: '500', color: t.ink, letterSpacing: -1.5, includeFontPadding: false },
+    heroPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ecfccb', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginLeft: 14 },
+    heroPillText: { fontFamily: font.monoBold, fontSize: 10, color: '#4d7c0f', letterSpacing: 0.5 },
     card: { marginHorizontal: 20, marginBottom: 16, padding: 24, backgroundColor: t.surface, borderRadius: 28, borderWidth: 1, borderColor: t.rule },
     cardTitle: { fontFamily: font.uiBold, fontSize: 16, color: t.ink },
-    btnPrimary: { flex: 1, backgroundColor: accent.v, paddingVertical: 14, borderRadius: 100, alignItems: 'center' },
-    btnPrimaryText: { fontFamily: font.uiBold, fontSize: 14, color: t.bg },
+    btnPrimary: { flex: 1.2, backgroundColor: accent.v, paddingVertical: 14, borderRadius: 100, alignItems: 'center' },
+    btnPrimaryText: { fontFamily: font.uiBold, fontSize: 13, color: t.bg },
     btnSecondary: { flex: 1, backgroundColor: alpha(accent.v, 0.1), paddingVertical: 14, borderRadius: 100, alignItems: 'center' },
-    btnSecondaryText: { fontFamily: font.uiBold, fontSize: 14, color: aink },
+    btnSecondaryText: { fontFamily: font.uiBold, fontSize: 13, color: aink },
   });
 }

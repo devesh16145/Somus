@@ -1,7 +1,8 @@
 // src/screens/BudgetScreen.tsx
 // ─────────────────────────────────────────────────────────────
 import React, { useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { LiquidDialog } from '../components/LiquidDialog';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -9,6 +10,7 @@ import { themes, font, accent, accentInk, alpha } from '../theme';
 import { useStore } from '../store';
 import LiquidIcon, { CAT_ICON } from '../components/LiquidIcons';
 import { PressableScale, StaggerFade } from '../components/VaultAnimations';
+import { FAB, TopBar } from '../components/ActionViews';
 import { BudgetRepository } from '../database/BudgetRepository';
 import { BudgetEngine } from '../services/BudgetEngine';
 import { CATEGORY_LABELS } from '../types/Transaction';
@@ -34,30 +36,46 @@ export default function BudgetScreen() {
     return BudgetEngine.computeStatus(activeBudget, transactions, new Date());
   }, [activeBudget, transactions]);
 
-  function handleDelete() {
+  function handleMenu() {
     if (!activeBudget) return;
-    Alert.alert('Delete budget?', activeBudget.name, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive', onPress: () => {
-          BudgetRepository.delete(activeBudget.id);
-          setActiveBudget(null);
+    LiquidDialog.show({
+      title: activeBudget.name,
+      message: 'What would you like to do?',
+      buttons: [
+        { text: 'Edit', onPress: () => nav.navigate('AddBudget', { budget: activeBudget } as any) },
+        {
+          text: 'Delete', style: 'destructive', onPress: () => {
+            LiquidDialog.show({
+              title: 'Delete budget?',
+              message: activeBudget.name,
+              buttons: [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete', style: 'destructive', onPress: () => {
+                    BudgetRepository.delete(activeBudget.id);
+                    setActiveBudget(null);
+                  },
+                },
+              ],
+            });
+          },
         },
-      },
-    ]);
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    });
   }
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       <SafeAreaView style={{ flex: 1 }}>
-        <View style={s.topBar}>
-          <Text style={[s.title, { color: t.ink }]}>Budget</Text>
-          {activeBudget && (
-            <TouchableOpacity onPress={handleDelete} style={s.iconBtn} activeOpacity={0.7}>
+        <TopBar />
+        {activeBudget && (
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 20 }}>
+            <TouchableOpacity onPress={handleMenu} style={s.iconBtn} activeOpacity={0.7}>
               <LiquidIcon name="dots" size={18} color={t.inkDim} />
             </TouchableOpacity>
-          )}
-        </View>
+          </View>
+        )}
 
         {!activeBudget ? (
           <EmptyState t={t} aink={aink} onCreate={() => nav.navigate('AddBudget')} />
@@ -159,12 +177,7 @@ export default function BudgetScreen() {
         )}
 
         {activeBudget && (
-          <PressableScale
-            onPress={() => nav.navigate('AddBudget', { budget: activeBudget } as any)}
-            style={[s.fab, { backgroundColor: accent.v }]}
-          >
-            <LiquidIcon name="plus" size={22} color="#051911" strokeWidth={2.5} />
-          </PressableScale>
+          <FAB onPress={() => nav.navigate('AddBudget', { budget: activeBudget } as any)} />
         )}
       </SafeAreaView>
     </View>
@@ -265,12 +278,4 @@ const s = StyleSheet.create({
   capAmount: { fontFamily: font.monoBold, fontSize: 13, fontVariant: ['tabular-nums'] },
   capMeta: { fontFamily: font.mono, fontSize: 10, marginTop: 2 },
 
-  fab: {
-    position: 'absolute', bottom: 100, right: 24,
-    width: 52, height: 52, borderRadius: 26,
-    alignItems: 'center', justifyContent: 'center',
-    elevation: 8,
-    shadowColor: accent.v, shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4, shadowRadius: 10,
-  },
 });

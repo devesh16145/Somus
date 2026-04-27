@@ -67,6 +67,33 @@ export const TransactionRepository = {
     );
   },
 
+  update(id: string, fields: Partial<Pick<Transaction,
+    'amount' | 'merchant' | 'category' | 'userCategory' | 'type' |
+    'currencyCode' | 'smsDate' | 'sender' | 'rawSms'
+  >>): void {
+    const sets: string[] = [];
+    const vals: any[] = [];
+    if (fields.amount !== undefined)       { sets.push('amount=?');         vals.push(fields.amount); }
+    if (fields.merchant !== undefined)     { sets.push('merchant=?');       vals.push(fields.merchant); }
+    if (fields.category !== undefined)     { sets.push('category=?');       vals.push(fields.category); }
+    if (fields.userCategory !== undefined) { sets.push('user_category=?');  vals.push(fields.userCategory); }
+    if (fields.type !== undefined)         { sets.push('type=?');           vals.push(fields.type); }
+    if (fields.currencyCode !== undefined) { sets.push('currency_code=?');  vals.push(fields.currencyCode); }
+    if (fields.smsDate !== undefined)      { sets.push('sms_date=?');       vals.push(fields.smsDate); }
+    if (fields.sender !== undefined)       { sets.push('sender=?');         vals.push(fields.sender); }
+    if (fields.rawSms !== undefined)       { sets.push('raw_sms=?');        vals.push(fields.rawSms); }
+    sets.push('user_verified=1');
+    if (sets.length === 1) return;
+    vals.push(id);
+    getDb().execute(`UPDATE transactions SET ${sets.join(',')} WHERE id=?`, vals);
+  },
+
+  getById(id: string): Transaction | null {
+    const { rows } = getDb().execute(`SELECT * FROM transactions WHERE id=? LIMIT 1`, [id]);
+    const r = rows?._array?.[0];
+    return r ? toTx(r) : null;
+  },
+
   delete(id: string): void {
     getDb().execute(`DELETE FROM transactions WHERE id=?`, [id]);
   },

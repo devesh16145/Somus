@@ -24,7 +24,7 @@ const ICON_PATHS = {
   shield: (<><Path d="M12 3 4 6v6c0 5 3.5 8.5 8 9 4.5-.5 8-4 8-9V6l-8-3Z"/><Path d="m9 12 2 2 4-4"/></>),
   search: (<><Circle cx="11" cy="11" r="6"/><Path d="m20 20-4-4"/></>),
   filter: <Path d="M4 5h16l-6 8v6l-4-2v-4L4 5Z"/>,
-  cog: (<><Circle cx="12" cy="12" r="3"/><Path d="M12 3v2M12 19v2M21 12h-2M5 12H3M18.36 5.64l-1.41 1.41M7.05 16.95l-1.41 1.41M18.36 18.36l-1.41-1.41M7.05 7.05 5.64 5.64"/></>),
+  cog: (<><Path d="M9.6 3.2a1 1 0 0 1 .9-.7h3a1 1 0 0 1 .9.7l.3 1.7c.55.2 1.07.5 1.5.85l1.6-.6a1 1 0 0 1 1.1.4l1.5 2.6a1 1 0 0 1-.2 1.2l-1.3 1.1c.05.32.1.65.1 1s-.05.68-.1 1l1.3 1.1a1 1 0 0 1 .2 1.2l-1.5 2.6a1 1 0 0 1-1.1.4l-1.6-.6c-.43.35-.95.65-1.5.85l-.3 1.7a1 1 0 0 1-.9.7h-3a1 1 0 0 1-.9-.7l-.3-1.7c-.55-.2-1.07-.5-1.5-.85l-1.6.6a1 1 0 0 1-1.1-.4l-1.5-2.6a1 1 0 0 1 .2-1.2l1.3-1.1c-.05-.32-.1-.65-.1-1s.05-.68.1-1l-1.3-1.1a1 1 0 0 1-.2-1.2l1.5-2.6a1 1 0 0 1 1.1-.4l1.6.6c.43-.35.95-.65 1.5-.85l.3-1.7Z"/><Circle cx="12" cy="12" r="3"/></>),
   plane: <Path d="M3 13 21 6l-7 13-2-6-6-3Z"/>,
   gas: (<><Path d="M5 20V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v15"/><Path d="M4 20h12"/><Path d="M15 9h2a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-2-2"/></>),
   pill: (<><Rect x="3" y="9" width="18" height="6" rx="3" transform="rotate(-30 12 12)"/><Path d="M9.6 8.4l5.7 5.7" transform="rotate(-30 12 12)"/></>),
@@ -39,27 +39,38 @@ const ICON_PATHS = {
   refresh: (<><Path d="M1 4v6h6"/><Path d="M23 20v-6h-6"/><Path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 0 1 3.51 15"/></>),
   star: <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.27 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2Z"/>,
   target: (<><Circle cx="12" cy="12" r="10"/><Circle cx="12" cy="12" r="6"/><Circle cx="12" cy="12" r="2"/></>),
+  trash: (<><Path d="M4 7h16"/><Path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><Path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><Path d="M10 11v7M14 11v7"/></>),
+  download: (<><Path d="M12 3v13"/><Path d="m6 11 6 6 6-6"/><Path d="M4 21h16"/></>),
+  upload: (<><Path d="M12 21V8"/><Path d="m6 13 6-6 6 6"/><Path d="M4 4h16"/></>),
+  close: <Path d="M6 6l12 12M18 6 6 18"/>,
+  book: (<><Path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4Z"/><Path d="M5 17a3 3 0 0 1 3-3h11"/></>),
+  play: <Path d="M7 5v14l12-7L7 5Z"/>,
+  repeat: (<><Path d="M3 12a9 9 0 0 1 14.5-7L20 7"/><Path d="M20 3v4h-4"/><Path d="M21 12a9 9 0 0 1-14.5 7L4 17"/><Path d="M4 21v-4h4"/></>),
+  document: (<><Path d="M7 3h7l5 5v13H7V3Z"/><Path d="M14 3v5h5"/><Path d="M9 13h6M9 16h6M9 10h3"/></>),
+  arrowUpDown: (<><Path d="M7 4v16"/><Path d="m3 8 4-4 4 4"/><Path d="M17 20V4"/><Path d="m13 16 4 4 4-4"/></>),
+  flag: (<><Path d="M5 21V4"/><Path d="M5 4h11l-2 4 2 4H5"/></>),
 };
 
 export type { IconName };
 
 export const CAT_ICON: Record<string, IconName> = {
   FOOD_DINING: 'fork', TRANSPORT: 'bus', SHOPPING: 'bag', GROCERIES: 'basket',
-  UTILITIES: 'bolt', ENTERTAINMENT: 'disc', HEALTH_MEDICAL: 'pill', TRAVEL: 'plane',
-  EDUCATION: 'disc', FUEL: 'gas', ATM_CASH: 'dots', TRANSFER: 'arrowRt',
-  SUBSCRIPTION: 'disc', INSURANCE: 'shield', RENT: 'home', OTHER: 'dots',
+  UTILITIES: 'bolt', ENTERTAINMENT: 'play', HEALTH_MEDICAL: 'pill', TRAVEL: 'plane',
+  EDUCATION: 'book', FUEL: 'gas', ATM_CASH: 'dots', TRANSFER: 'arrowRt',
+  SUBSCRIPTION: 'repeat', INSURANCE: 'shield', RENT: 'home', OTHER: 'dots',
 };
 
-export default function LiquidIcon({ name, size = 20, color = 'currentColor', strokeWidth = 1.7 }: {
+export default function LiquidIcon({ name, size = 20, color = 'currentColor', strokeWidth = 1.7, style }: {
   name: IconName;
   size?: number;
   color?: string;
   strokeWidth?: number;
+  style?: any;
 }) {
   const paths = ICON_PATHS[name];
   if (!paths) return null;
   return (
-    <Svg width={size} height={size} {...common} stroke={color} strokeWidth={strokeWidth}>
+    <Svg width={size} height={size} {...common} stroke={color} strokeWidth={strokeWidth} style={style}>
       {paths}
     </Svg>
   );

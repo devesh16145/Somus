@@ -1,21 +1,23 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  TextInput, RefreshControl, Alert, ScrollView, Platform
+  TextInput, RefreshControl, ScrollView, Platform
 } from 'react-native';
+import { LiquidDialog } from '../components/LiquidDialog';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useStore } from '../store';
 import { TransactionRepository } from '../database/TransactionRepository';
-import { CATEGORY_LABELS, CATEGORY_EMOJI, Transaction } from '../types/Transaction';
+import { CATEGORY_LABELS, Transaction } from '../types/Transaction';
 import { TxCategory } from '../modules/LeapModule';
 import { RootStackParams } from '../App';
 import { themes, accent, accentInk, font, alpha, ThemeMode } from '../theme';
 import LiquidIcon, { CAT_ICON } from '../components/LiquidIcons';
-import { FAB } from '../components/ActionViews';
+import { FAB, TopBar } from '../components/ActionViews';
 import { StaggerFade } from '../components/VaultAnimations';
+import PeriodPicker, { PeriodSelection, getPeriodRange, defaultSelection } from '../components/PeriodPicker';
 
 type Nav = NativeStackNavigationProp<RootStackParams>;
 
@@ -28,20 +30,27 @@ export default function TransactionsScreen() {
   const [search, setSearch]         = useState('');
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'DEBIT' | 'CREDIT'>('ALL');
   const [currencyFilter, setCurrencyFilter] = useState<string>('ALL');
+  const [period, setPeriod]         = useState<PeriodSelection>(() => defaultSelection('month'));
   const [refreshing, setRefreshing] = useState(false);
+
+  const periodRange = useMemo(() => getPeriodRange(period), [period]);
 
   // Selection mode
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected]   = useState<Set<string>>(new Set());
 
+  const periodScoped = useMemo(() => {
+    return transactions.filter(tx => tx.smsDate >= periodRange.startMs && tx.smsDate <= periodRange.endMs);
+  }, [transactions, periodRange.startMs, periodRange.endMs]);
+
   const currencies = useMemo(() => {
     const set = new Set<string>();
-    transactions.forEach(x => set.add(x.currencyCode));
+    periodScoped.forEach(x => set.add(x.currencyCode));
     return Array.from(set).sort();
-  }, [transactions]);
+  }, [periodScoped]);
 
   const filtered = useMemo(() => {
-    return transactions.filter(tx => {
+    return periodScoped.filter(tx => {
       const q = search.toLowerCase();
       const matchSearch = !q ||
         tx.merchant.toLowerCase().includes(q) ||
@@ -51,7 +60,7 @@ export default function TransactionsScreen() {
       const matchCcy = currencyFilter === 'ALL' || tx.currencyCode === currencyFilter;
       return matchSearch && matchType && matchCcy;
     });
-  }, [transactions, search, typeFilter, currencyFilter]);
+  }, [periodScoped, search, typeFilter, currencyFilter]);
 
   // Group by day
   const grouped = useMemo(() => {
@@ -97,10 +106,10 @@ export default function TransactionsScreen() {
 
   const deleteSelected = useCallback(() => {
     const count = selected.size;
-    Alert.alert(
-      'Delete Transactions',
-      `Delete ${count} transaction${count > 1 ? 's' : ''}? This cannot be undone.`,
-      [
+    LiquidDialog.show({
+      title: 'Delete Transactions',
+      message: `Delete ${count} transaction${count > 1 ? 's' : ''}? This cannot be undone.`,
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete', style: 'destructive',
@@ -111,38 +120,39 @@ export default function TransactionsScreen() {
             cancelSelection();
           },
         },
-      ]
-    );
+      ],
+    });
   }, [selected, deleteTransactions, cancelSelection]);
 
   const deleteAll = useCallback(() => {
-    Alert.alert(
-      'Delete All',
-      `Delete all ${transactions.length} transactions?`,
-      [
+    LiquidDialog.show({
+      title: 'Delete All',
+      message: `Delete all ${transactions.length} transactions?`,
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete All', style: 'destructive', onPress: () => {
           TransactionRepository.deleteAll();
           setTransactions([]);
           cancelSelection();
-        }}
-      ]
-    );
+        }},
+      ],
+    });
   }, [transactions, setTransactions, cancelSelection]);
 
   const s = getStyles(t, aink);
 
   const filters = [
-    { l: 'All', n: transactions.length, on: typeFilter === 'ALL' && currencyFilter === 'ALL', action: () => { setTypeFilter('ALL'); setCurrencyFilter('ALL'); } },
-    { l: 'Spent', n: transactions.filter(x=>x.type==='DEBIT').length, on: typeFilter === 'DEBIT', action: () => { setTypeFilter('DEBIT'); setCurrencyFilter('ALL'); } },
-    { l: 'Received', n: transactions.filter(x=>x.type==='CREDIT').length, on: typeFilter === 'CREDIT', action: () => { setTypeFilter('CREDIT'); setCurrencyFilter('ALL'); } },
+    { l: 'All', n: periodScoped.length, on: typeFilter === 'ALL' && currencyFilter === 'ALL', action: () => { setTypeFilter('ALL'); setCurrencyFilter('ALL'); } },
+    { l: 'Spent', n: periodScoped.filter(x=>x.type==='DEBIT').length, on: typeFilter === 'DEBIT', action: () => { setTypeFilter('DEBIT'); setCurrencyFilter('ALL'); } },
+    { l: 'Received', n: periodScoped.filter(x=>x.type==='CREDIT').length, on: typeFilter === 'CREDIT', action: () => { setTypeFilter('CREDIT'); setCurrencyFilter('ALL'); } },
     ...currencies.map(c => ({
-      l: c, n: transactions.filter(x=>x.currencyCode===c).length, on: currencyFilter === c, action: () => { setCurrencyFilter(c); setTypeFilter('ALL'); }
+      l: c, n: periodScoped.filter(x=>x.currencyCode===c).length, on: currencyFilter === c, action: () => { setCurrencyFilter(c); setTypeFilter('ALL'); }
     }))
   ];
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }} edges={['top']}>
+      {!selecting && <TopBar />}
       {/* Header */}
       {selecting ? (
         <View style={s.header}>
@@ -154,17 +164,18 @@ export default function TransactionsScreen() {
           </View>
         </View>
       ) : (
-        <View style={s.headerGroup}>
-          <View style={s.headerRow}>
-            <Text style={s.title}>Transactions</Text>
+        <View style={s.hero}>
+          <Text style={s.heroLabel}>Activity Ledger</Text>
+          <View style={s.heroRow}>
+            <Text style={s.heroAmount}>{periodScoped.length}</Text>
             <View style={s.liveBadge}>
               <View style={s.liveDot} />
               <Text style={s.liveText}>live</Text>
             </View>
           </View>
-          <Text style={s.subtitle}>
-            {transactions.length} entries · {currencies.length} currencies
-          </Text>
+          <View style={{ marginTop: 8 }}>
+            <PeriodPicker value={period} onChange={setPeriod} />
+          </View>
         </View>
       )}
 
@@ -187,7 +198,7 @@ export default function TransactionsScreen() {
         </View>
         {!selecting && transactions.length > 0 && (
           <TouchableOpacity onPress={deleteAll} style={s.clearAllBtn} activeOpacity={0.7}>
-            <LiquidIcon name="basket" size={16} color={'#FF4444'} />
+            <LiquidIcon name="trash" size={16} color={'#FF4444'} />
           </TouchableOpacity>
         )}
       </View>
@@ -238,7 +249,15 @@ export default function TransactionsScreen() {
           </View>
         )}
       </ScrollView>
-      <FAB onPress={() => nav.navigate('AddTransaction')} />
+      <FAB onPress={() => LiquidDialog.show({
+        title: 'Add transaction',
+        message: 'Pick how you want to add transactions.',
+        buttons: [
+          { text: 'Create new', onPress: () => nav.navigate('AddTransaction') },
+          { text: 'Sync from SMS', onPress: () => nav.navigate('SyncSms') },
+          { text: 'Cancel', style: 'cancel' },
+        ],
+      })} />
     </SafeAreaView>
   );
 }
@@ -288,10 +307,11 @@ function getStyles(t: any, aink: string) {
     headerBtnText: { fontFamily: font.uiBold, fontSize: 14 },
     titleSmall: { fontFamily: font.uiBold, fontSize: 15, color: t.ink },
     
-    headerGroup: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 6 },
-    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-    title: { fontFamily: font.uiBold, fontSize: 28, letterSpacing: -1.2, color: t.ink },
-    liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    hero: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 16 },
+    heroLabel: { fontFamily: font.uiBold, fontSize: 13, color: t.inkDim, letterSpacing: 0.5, marginBottom: 4 },
+    heroRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    heroAmount: { fontFamily: font.display, fontSize: 44, fontWeight: '500', color: t.ink, letterSpacing: -1.5, includeFontPadding: false },
+    liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, marginLeft: 6 },
     liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: accent.v, boxShadow: `0 0 8px ${accent.v}` },
     liveText: { fontFamily: font.mono, fontSize: 10, color: t.mute },
     subtitle: { fontFamily: font.mono, fontSize: 11, color: t.mute, marginTop: 4 },

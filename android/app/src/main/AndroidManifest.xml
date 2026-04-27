@@ -24,7 +24,7 @@
         android:allowBackup="false"
         android:theme="@style/AppTheme"
         android:hardwareAccelerated="true"
-        android:usesCleartextTraffic="true"
+        android:usesCleartextTraffic="false"
         android:networkSecurityConfig="@xml/network_security_config">
 
         <activity
@@ -40,17 +40,16 @@
             </intent-filter>
         </activity>
 
-        <!-- WorkManager for LEAP model downloader -->
+        <!--
+            MainApplication implements androidx.work.Configuration.Provider, so
+            the default InitializationProvider must be removed (lint enforces this
+            in release builds). WorkManager will initialize on first use via our
+            getWorkManagerConfiguration().
+        -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
-            android:exported="false"
-            tools:node="merge">
-            <meta-data
-                android:name="androidx.work.WorkManagerInitializer"
-                android:value="androidx.startup.InitializationProvider"
-                tools:replace="android:value" />
-        </provider>
+            tools:node="remove" />
 
     </application>
 </manifest>

@@ -40,6 +40,11 @@ export interface SyncCallbacks {
   onSmsCount?: (total: number) => void;
   onSmsRead?: (read: number, total: number) => void;
   onProcessed?: (processed: number, total: number, found: number) => void;
+  shouldAbort?: () => boolean;
+}
+
+export class AbortedError extends Error {
+  constructor() { super('Aborted'); this.name = 'AbortedError'; }
 }
 
 export const SmsOrchestrator = {
@@ -59,11 +64,13 @@ export const SmsOrchestrator = {
     const total = await SmsModule.countInPeriod(cappedStart, endMs);
     callbacks?.onSmsCount?.(total);
     if (!total) return 0;
+    if (callbacks?.shouldAbort?.()) throw new AbortedError();
 
     // Step 2: Read SMS from inbox
     callbacks?.onSmsRead?.(0, total);
     const msgs = await SmsModule.fetchPeriod(cappedStart, endMs, total);
     callbacks?.onSmsRead?.(msgs.length, total);
+    if (callbacks?.shouldAbort?.()) throw new AbortedError();
 
     // Step 3: Process each SMS through AI one at a time for real-time progress
     const found = await runInference(msgs, callbacks);
@@ -127,6 +134,7 @@ async function runInference(
   let processed = 0;
   let found = 0;
   for (const msg of msgs) {
+    if (callbacks?.shouldAbort?.()) throw new AbortedError();
     try {
       const result = await LeapModule.processSms(msg.sender, msg.body, msg.date);
       if (result) {

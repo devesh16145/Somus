@@ -1,7 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, RefreshControl, Alert
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl,
 } from 'react-native';
+import { LiquidDialog } from '../components/LiquidDialog';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -17,8 +18,10 @@ import { SmsOrchestrator } from '../services/SmsOrchestrator';
 import { CATEGORY_LABELS, Transaction } from '../types/Transaction';
 import { TxCategory } from '../modules/LeapModule';
 import { RootStackParams } from '../App';
-import { AnimatedNumber, StaggerFade, PressableScale } from '../components/VaultAnimations';
+import { AnimatedNumber, StaggerFade } from '../components/VaultAnimations';
 import { MoneyFlow } from '../components/MoneyFlow';
+import { FAB, TopBar } from '../components/ActionViews';
+import PeriodPicker, { PeriodSelection, getPeriodRange, defaultSelection } from '../components/PeriodPicker';
 
 type Nav = NativeStackNavigationProp<RootStackParams>;
 
@@ -26,13 +29,17 @@ type Nav = NativeStackNavigationProp<RootStackParams>;
 interface Metrics {
   monthSpend: number;
   monthIncome: number;
+  periodSpend: number;
+  periodIncome: number;
   categoryTotals: Record<string, number>;
   latestSubscription: Transaction | null;
   totalSpend: number;
 }
 
 const emptyMetrics: Metrics = {
-  monthSpend: 0, monthIncome: 0, categoryTotals: {}, latestSubscription: null, totalSpend: 0,
+  monthSpend: 0, monthIncome: 0,
+  periodSpend: 0, periodIncome: 0,
+  categoryTotals: {}, latestSubscription: null, totalSpend: 0,
 };
 
 export default function DashboardScreen() {
@@ -50,6 +57,7 @@ export default function DashboardScreen() {
 
   const [metrics, setMetrics] = useState<Metrics>(emptyMetrics);
   const [refreshing, setRefreshing] = useState(false);
+  const [period, setPeriod] = useState<PeriodSelection>(() => defaultSelection('month'));
   const [processError, setProcessError] = useState<string | null>(null);
   const [processProgress, setProcessProgress] =
     useState<{ done: number; total: number; found: number } | null>(null);
@@ -59,21 +67,35 @@ export default function DashboardScreen() {
       loadData();
       try { setActiveBudget(BudgetRepository.getActive()); } catch {}
       SmsOrchestrator.getPendingCount().then(setPendingCount).catch(() => {});
-    }, [transactions]),
+    }, [transactions, period]),
   );
+
+  const periodRange = getPeriodRange(period);
 
   function loadData() {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
     const monthEnd = now.getTime();
 
-    const thisMonthTotals = TransactionRepository.getTotalSpentByCategory(monthStart, monthEnd);
+    const { startMs, endMs } = getPeriodRange(period);
+
+    const periodCategoryTotals = TransactionRepository.getTotalSpentByCategory(startMs, endMs);
+    const periodTxns = TransactionRepository.getByDateRange(startMs, endMs);
+    const periodSpend = periodTxns.filter(tx => tx.type === 'DEBIT').reduce((s, tx) => s + tx.amount, 0);
+    const periodIncome = periodTxns.filter(tx => tx.type === 'CREDIT').reduce((s, tx) => s + tx.amount, 0);
+
     const monthTxns = TransactionRepository.getByDateRange(monthStart, monthEnd);
     const monthSpend = monthTxns.filter(tx => tx.type === 'DEBIT').reduce((s, tx) => s + tx.amount, 0);
     const monthIncome = monthTxns.filter(tx => tx.type === 'CREDIT').reduce((s, tx) => s + tx.amount, 0);
     const latestSubscription = TransactionRepository.getLatestByCategory('SUBSCRIPTION');
 
-    setMetrics({ monthSpend, monthIncome, categoryTotals: thisMonthTotals, latestSubscription, totalSpend: monthSpend });
+    setMetrics({
+      monthSpend, monthIncome,
+      periodSpend, periodIncome,
+      categoryTotals: periodCategoryTotals,
+      latestSubscription,
+      totalSpend: periodSpend,
+    });
   }
 
   async function onRefresh() {
@@ -112,12 +134,16 @@ export default function DashboardScreen() {
   }
 
   function handleAddPress() {
-    Alert.alert('Create New', 'What would you like to add?', [
-      { text: 'Transaction', onPress: () => nav.navigate('AddTransaction') },
-      { text: 'Subscription', onPress: () => nav.navigate('AddSubscription') },
-      { text: 'Goal', onPress: () => nav.navigate('AddGoal') },
-      { text: 'Cancel', style: 'cancel' }
-    ]);
+    LiquidDialog.show({
+      title: 'Create New',
+      message: 'What would you like to add?',
+      buttons: [
+        { text: 'Transaction', onPress: () => nav.navigate('AddTransaction') },
+        { text: 'Subscription', onPress: () => nav.navigate('AddSubscription') },
+        { text: 'Goal', onPress: () => nav.navigate('AddGoal') },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    });
   }
 
   // Derived
@@ -127,7 +153,8 @@ export default function DashboardScreen() {
     .sort(([, a], [, b]) => b - a)
     .slice(0, 5) as [TxCategory, number][];
   const recent = transactions.slice(0, 3);
-  const net = metrics.monthIncome - metrics.monthSpend;
+  const net = metrics.periodIncome - metrics.periodSpend;
+  const isMonth = period.kind === 'month';
 
   const budgetStatus = activeBudget ? BudgetEngine.computeStatus(activeBudget, transactions) : null;
   const budgetLimit = activeBudget?.monthlyLimit ?? (metrics.monthIncome > 0 ? metrics.monthIncome : Math.max(metrics.monthSpend * 1.25, 1));
@@ -167,53 +194,20 @@ export default function DashboardScreen() {
       </Svg>
 
       <SafeAreaView style={s.container}>
-      <View style={s.topBar}>
-        <View style={s.topBarLeft}>
-          <View style={{ width: 8 }} />
-        </View>
-        <View style={s.topBarRight}>
-          <View style={[s.offlineChip, { backgroundColor: t.chipBg }]}>
-            <LiquidIcon name="wifiOff" size={11} color={t.inkDim} strokeWidth={1.8} />
-            <Text style={[s.offlineText, { color: t.inkDim }]}>offline</Text>
-          </View>
-          <TouchableOpacity
-            style={[s.themeBtn, { backgroundColor: t.surface }]}
-            onPress={async () => {
-              setRefreshing(true);
-              try {
-                const count = await SmsOrchestrator.getPendingCount();
-                setPendingCount(count);
-                const fresh = TransactionRepository.getAll(200);
-                setTransactions(fresh);
-                loadData();
-              } catch { /* */ }
-              setRefreshing(false);
-            }}
-            activeOpacity={0.7}>
-            <LiquidIcon
-              name="refresh"
-              size={14}
-              color={refreshing ? accent.v : t.inkDim}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[s.themeBtn, { backgroundColor: t.surface }]}
-            onPress={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
-            activeOpacity={0.7}>
-            <LiquidIcon
-              name={themeMode === 'dark' ? 'sun' : 'moon'}
-              size={14}
-              color={t.inkDim}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[s.themeBtn, { backgroundColor: t.surface }]}
-            onPress={() => nav.navigate('Settings')}
-            activeOpacity={0.7}>
-            <LiquidIcon name="cog" size={14} color={t.inkDim} />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <TopBar
+        refreshing={refreshing}
+        onRefresh={async () => {
+          setRefreshing(true);
+          try {
+            const count = await SmsOrchestrator.getPendingCount();
+            setPendingCount(count);
+            const fresh = TransactionRepository.getAll(200);
+            setTransactions(fresh);
+            loadData();
+          } catch { /* */ }
+          setRefreshing(false);
+        }}
+      />
 
       <ScrollView
         contentContainerStyle={s.scroll}
@@ -224,9 +218,7 @@ export default function DashboardScreen() {
 
         <View style={s.hero}>
           <View style={s.heroTop}>
-            <Text style={[s.heroMonth, { color: t.mute }]}>
-              {new Date().toLocaleDateString('en', { month: 'long' })} · month to date
-            </Text>
+            <PeriodPicker value={period} onChange={setPeriod} />
             <View style={[s.liveChip, { backgroundColor: t.chipBg }]}>
               <View style={[s.liveDot, { backgroundColor: accent.v }]} />
               <Text style={[s.liveText, { color: t.inkDim }]}>live</Text>
@@ -243,7 +235,7 @@ export default function DashboardScreen() {
             />
           </View>
 
-          {budgetStatus ? (
+          {isMonth && budgetStatus ? (
             <Text style={[s.heroSubtitle, { color: t.inkDim }]}>
               {formatAmount(budgetStatus.remaining, currency)} left ·{' '}
               <Text style={{ color: aink, fontFamily: font.uiBold }}>
@@ -253,7 +245,7 @@ export default function DashboardScreen() {
             </Text>
           ) : (
             <Text style={[s.heroSubtitle, { color: t.inkDim }]}>
-              of {formatAmount(budgetLimit, currency)} est. ·{' '}
+              {formatAmount(metrics.periodIncome, currency)} in ·{' '}
               <Text style={{ color: aink, fontFamily: font.uiBold }}>
                 {net >= 0 ? '+' : '\u2212'}{formatAmount(Math.abs(net), currency)}
               </Text>{' '}
@@ -261,23 +253,36 @@ export default function DashboardScreen() {
             </Text>
           )}
 
-          <View style={[s.budgetBarBg, { backgroundColor: t.chipBg }]}>
-            <View style={[s.budgetBarFill, { width: `${Math.min(100, (metrics.monthSpend / budgetLimit) * 100)}%`, backgroundColor: budgetStatus?.pace === 'overspending' ? '#E06B4A' : accent.v }]} />
-          </View>
-          <View style={s.budgetLabels}>
-            {budgetStatus ? (
-              <Text style={[s.budgetLabel, { color: paceColor }]}>
-                Day {budgetStatus.daysElapsed} of {budgetStatus.daysInMonth} · {paceLabel}
+          {isMonth ? (
+            <>
+              <View style={[s.budgetBarBg, { backgroundColor: t.chipBg }]}>
+                <View style={[s.budgetBarFill, { width: `${Math.min(100, (metrics.monthSpend / budgetLimit) * 100)}%`, backgroundColor: budgetStatus?.pace === 'overspending' ? '#E06B4A' : accent.v }]} />
+              </View>
+              <View style={s.budgetLabels}>
+                {budgetStatus ? (
+                  <Text style={[s.budgetLabel, { color: paceColor }]}>
+                    Day {budgetStatus.daysElapsed} of {budgetStatus.daysInMonth} · {paceLabel}
+                  </Text>
+                ) : (
+                  <Text style={[s.budgetLabel, { color: t.mute }]}>{drawnPct}% drawn</Text>
+                )}
+                <Text style={[s.budgetLabel, { color: t.mute }]}>
+                  {daysLeftInMonth()} days remaining
+                </Text>
+              </View>
+            </>
+          ) : (
+            <View style={s.budgetLabels}>
+              <Text style={[s.budgetLabel, { color: t.mute }]}>
+                Day {periodRange.daysElapsed} of {periodRange.daysTotal}
               </Text>
-            ) : (
-              <Text style={[s.budgetLabel, { color: t.mute }]}>{drawnPct}% drawn</Text>
-            )}
-            <Text style={[s.budgetLabel, { color: t.mute }]}>
-              {daysLeftInMonth()} days remaining
-            </Text>
-          </View>
+              <Text style={[s.budgetLabel, { color: t.mute }]}>
+                {Math.max(0, periodRange.daysTotal - periodRange.daysElapsed)} days remaining
+              </Text>
+            </View>
+          )}
 
-          {!activeBudget && (
+          {isMonth && !activeBudget && (
             <TouchableOpacity
               onPress={() => nav.navigate('Main', { screen: 'Budget' } as any)}
               activeOpacity={0.7}
@@ -291,11 +296,12 @@ export default function DashboardScreen() {
         </View>
 
         <MoneyFlow
-          income={metrics.monthIncome}
-          budget={activeBudget?.monthlyLimit ?? null}
-          expense={metrics.monthSpend}
+          income={metrics.periodIncome}
+          budget={isMonth ? (activeBudget?.monthlyLimit ?? null) : null}
+          expense={metrics.periodSpend}
           currency={currency}
           themeMode={themeMode}
+          title={periodRange.label}
         />
 
         {(pendingCount > 0 || processProgress) && (
@@ -344,7 +350,7 @@ export default function DashboardScreen() {
               );
             }) : (
               <View style={s.emptyBlock}>
-                <Text style={[s.emptyText, { color: t.mute }]}>No spending yet this month.</Text>
+                <Text style={[s.emptyText, { color: t.mute }]}>No spending yet in this period.</Text>
               </View>
             )}
           </View>
@@ -377,12 +383,7 @@ export default function DashboardScreen() {
         </View>
       </ScrollView>
       </SafeAreaView>
-      <PressableScale 
-        style={{ position: 'absolute', bottom: 100, right: 24, width: 56, height: 56, borderRadius: 28, backgroundColor: accent.v, alignItems: 'center', justifyContent: 'center', elevation: 8, shadowColor: accent.v, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 10 }} 
-        onPress={handleAddPress}
-      >
-        <LiquidIcon name="plus" size={24} color="#FFF" strokeWidth={3} />
-      </PressableScale>
+      <FAB onPress={handleAddPress} />
     </View>
   );
 }
@@ -408,7 +409,7 @@ function PendingBanner({ t, aink, pendingCount, syncing, progress, error, onPres
             {active ? `Processing ${progress.done} / ${progress.total}` : `${pendingCount} new message${pendingCount === 1 ? '' : 's'} pending`}
           </Text>
           <Text style={[s.pendingSub, { color: t.mute }]}>
-            lfm2-1.2b · ~60–90s/sms · on-device
+            lfm2-1.2b · ~10s/sms · on-device
           </Text>
         </View>
         {!active && (

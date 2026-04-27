@@ -11,6 +11,10 @@ import { SmsOrchestrator } from './services/SmsOrchestrator';
 import { TransactionRepository } from './database/TransactionRepository';
 import { font, alpha, themes, accent, accentInk } from './theme';
 import LiquidIcon from './components/LiquidIcons';
+import { LiquidDialogHost } from './components/LiquidDialog';
+import { CrashLogger } from './services/CrashLogger';
+
+CrashLogger.init();
 
 import OnboardingScreen from './screens/OnboardingScreen';
 import DashboardScreen from './screens/DashboardScreen';
@@ -23,23 +27,29 @@ import SettingsScreen from './screens/SettingsScreen';
 import AiManagementScreen from './screens/AiManagementScreen';
 import SmsPermissionsScreen from './screens/SmsPermissionsScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
+import BackupScreen from './screens/BackupScreen';
+import CrashLogsScreen from './screens/CrashLogsScreen';
 import { AddTransactionScreen, AddSubscriptionScreen } from './components/ActionViews';
 import AddGoalScreen from './screens/AddGoalScreen';
 import AddBudgetScreen from './screens/AddBudgetScreen';
+import SyncSmsScreen from './screens/SyncSmsScreen';
 import { BudgetRepository } from './database/BudgetRepository';
 
 export type RootStackParams = {
   Onboarding: undefined;
   Main: undefined;
   TransactionDetail: { transactionId: string };
-  AddTransaction: undefined;
-  AddSubscription: undefined;
-  AddGoal: undefined;
+  AddTransaction: undefined | { transactionId: string };
+  AddSubscription: undefined | { transactionId: string };
+  AddGoal: undefined | { goalId: string };
   AddBudget: undefined | { budget: any };
+  SyncSms: undefined;
   Settings: undefined;
   AiManagement: undefined;
   SmsPermissions: undefined;
   Notifications: undefined;
+  Backup: undefined;
+  CrashLogs: undefined;
 };
 
 export type TabParams = {
@@ -98,7 +108,7 @@ function TabNavigator() {
         options={{
           tabBarIcon: ({ color, focused }) => (
             <View style={{ alignItems: 'center', justifyContent: 'center', backgroundColor: focused ? alpha(accent.v, 0.15) : 'transparent', borderRadius: 20, paddingHorizontal: focused ? 18 : 0, paddingVertical: focused ? 8 : 0 }}>
-              <LiquidIcon name="basket" color={focused ? accent.v : color} size={focused ? 24 : 22} strokeWidth={focused ? 2 : 1.7} />
+              <LiquidIcon name="arrowUpDown" color={focused ? accent.v : color} size={focused ? 24 : 22} strokeWidth={focused ? 2 : 1.7} />
             </View>
           ),
         }}
@@ -120,7 +130,7 @@ function TabNavigator() {
         options={{
           tabBarIcon: ({ color, focused }) => (
             <View style={{ alignItems: 'center', justifyContent: 'center', backgroundColor: focused ? alpha(accent.v, 0.15) : 'transparent', borderRadius: 20, paddingHorizontal: focused ? 18 : 0, paddingVertical: focused ? 8 : 0 }}>
-              <LiquidIcon name="bag" color={focused ? accent.v : color} size={focused ? 24 : 22} strokeWidth={focused ? 2 : 1.7} />
+              <LiquidIcon name="repeat" color={focused ? accent.v : color} size={focused ? 24 : 22} strokeWidth={focused ? 2 : 1.7} />
             </View>
           ),
         }}
@@ -131,7 +141,7 @@ function TabNavigator() {
         options={{
           tabBarIcon: ({ color, focused }) => (
             <View style={{ alignItems: 'center', justifyContent: 'center', backgroundColor: focused ? alpha(accent.v, 0.15) : 'transparent', borderRadius: 20, paddingHorizontal: focused ? 18 : 0, paddingVertical: focused ? 8 : 0 }}>
-              <LiquidIcon name="disc" color={focused ? accent.v : color} size={focused ? 24 : 22} strokeWidth={focused ? 2 : 1.7} />
+              <LiquidIcon name="flag" color={focused ? accent.v : color} size={focused ? 24 : 22} strokeWidth={focused ? 2 : 1.7} />
             </View>
           ),
         }}
@@ -198,12 +208,16 @@ export default function App() {
           <Stack.Screen name="AddSubscription" component={AddSubscriptionScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="AddGoal" component={AddGoalScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="AddBudget" component={AddBudgetScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="SyncSms" component={SyncSmsScreen} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="Settings" component={SettingsScreen} options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="AiManagement" component={AiManagementScreen} />
           <Stack.Screen name="SmsPermissions" component={SmsPermissionsScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
+          <Stack.Screen name="Backup" component={BackupScreen} options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="CrashLogs" component={CrashLogsScreen} options={{ animation: 'slide_from_right' }} />
         </Stack.Navigator>
       </NavigationContainer>
+      <LiquidDialogHost />
     </SafeAreaProvider>
   );
 }

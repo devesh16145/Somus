@@ -2,8 +2,9 @@
 // ─────────────────────────────────────────────────────────────
 import React, { useMemo, useState } from 'react';
 import {
-  View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Alert, Switch,
+  View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Switch,
 } from 'react-native';
+import { LiquidDialog } from '../components/LiquidDialog';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { themes, font, accent, accentInk, alpha } from '../theme';
 import { useStore } from '../store';
@@ -43,7 +44,7 @@ export default function AddBudgetScreen({ navigation, route }: any) {
 
   function applySuggestedCaps() {
     const lim = parseFloat(limit);
-    if (!lim || lim <= 0) { Alert.alert('Set a monthly limit first'); return; }
+    if (!lim || lim <= 0) { LiquidDialog.alert('Set a monthly limit first'); return; }
     const sug = BudgetEngine.suggestCategoryCaps(3, lim);
     const next: Partial<Record<TxCategory, string>> = { ...caps };
     for (const [k, v] of Object.entries(sug)) next[k as TxCategory] = String(v);
@@ -52,8 +53,8 @@ export default function AddBudgetScreen({ navigation, route }: any) {
 
   function save() {
     const lim = parseFloat(limit);
-    if (!name.trim()) { Alert.alert('Enter a budget name'); return; }
-    if (!lim || lim <= 0) { Alert.alert('Enter a valid monthly limit'); return; }
+    if (!name.trim()) { LiquidDialog.alert('Enter a budget name'); return; }
+    if (!lim || lim <= 0) { LiquidDialog.alert('Enter a valid monthly limit'); return; }
 
     const categoryCaps: Partial<Record<TxCategory, number>> = {};
     for (const [k, v] of Object.entries(caps)) {

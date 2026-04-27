@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, TextInput, ScrollView, Alert, Modal, FlatList,
+  View, Text, TouchableOpacity, StyleSheet, TextInput, ScrollView, Modal, FlatList,
 } from 'react-native';
+import { LiquidDialog } from '../components/LiquidDialog';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { themes, font, accent, accentInk, alpha } from '../theme';
 import { useStore } from '../store';
@@ -15,48 +16,59 @@ import {
 
 type Step = 'template' | 'details' | 'priority';
 
-export default function AddGoalScreen({ navigation }: any) {
-  const { themeMode, setGoals } = useStore();
+export default function AddGoalScreen({ navigation, route }: any) {
+  const { themeMode, setGoals, goals } = useStore();
   const t = themes[themeMode];
   const aink = accentInk(themeMode);
 
-  const [step, setStep] = useState<Step>('template');
-  const [template, setTemplate] = useState<GoalTemplate>('custom');
+  const existingId: string | undefined = route?.params?.goalId;
+  const existing = existingId ? goals.find((g) => g.id === existingId) ?? null : null;
+  const isEdit = !!existing;
+
+  // Parse existing metadata if present
+  const existingMeta: any = (() => {
+    const raw = existing?.metadata;
+    if (!raw) return {};
+    try { return JSON.parse(raw); } catch { return {}; }
+  })();
+
+  const [step, setStep] = useState<Step>(isEdit ? 'details' : 'template');
+  const [template, setTemplate] = useState<GoalTemplate>(existing?.template ?? 'custom');
 
   // common
-  const [name, setName] = useState('');
-  const [target, setTarget] = useState('');
-  const [currency, setCurrency] = useState<GoalCurrency>('INR');
+  const [name, setName] = useState(existing?.name ?? '');
+  const [target, setTarget] = useState(existing ? String(existing.targetAmount) : '');
+  const [currency, setCurrency] = useState<GoalCurrency>(existing?.currency ?? 'INR');
   const [showCurrPicker, setShowCurrPicker] = useState(false);
 
   // priority step
-  const [priority, setPriority] = useState<GoalPriority>('medium');
-  const [isPrimary, setIsPrimary] = useState(false);
+  const [priority, setPriority] = useState<GoalPriority>(existing?.priority ?? 'medium');
+  const [isPrimary, setIsPrimary] = useState(existing?.isPrimary ?? false);
 
   // loan
-  const [loanType, setLoanType] = useState<LoanMeta['loanType']>('home');
-  const [interestRate, setInterestRate] = useState('');
-  const [emiAmount, setEmiAmount] = useState('');
-  const [tenureMonths, setTenureMonths] = useState('');
-  const [monthsPaid, setMonthsPaid] = useState('');
+  const [loanType, setLoanType] = useState<LoanMeta['loanType']>(existingMeta.loanType ?? 'home');
+  const [interestRate, setInterestRate] = useState(existingMeta.interestRate != null ? String(existingMeta.interestRate) : '');
+  const [emiAmount, setEmiAmount] = useState(existingMeta.emiAmount != null ? String(existingMeta.emiAmount) : '');
+  const [tenureMonths, setTenureMonths] = useState(existingMeta.tenureMonths != null ? String(existingMeta.tenureMonths) : '');
+  const [monthsPaid, setMonthsPaid] = useState(existingMeta.monthsPaid != null ? String(existingMeta.monthsPaid) : '');
 
   // travel
-  const [destination, setDestination] = useState('');
-  const [tripDate, setTripDate] = useState('');
-  const [breakdown, setBreakdown] = useState('');
+  const [destination, setDestination] = useState(existingMeta.destination ?? '');
+  const [tripDate, setTripDate] = useState(existingMeta.tripDate ?? '');
+  const [breakdown, setBreakdown] = useState(existingMeta.breakdown ?? '');
 
   // emergency
-  const [monthlyExpenses, setMonthlyExpenses] = useState('');
-  const [bufferMonths, setBufferMonths] = useState('6');
+  const [monthlyExpenses, setMonthlyExpenses] = useState(existingMeta.monthlyExpenses != null ? String(existingMeta.monthlyExpenses) : '');
+  const [bufferMonths, setBufferMonths] = useState(existingMeta.bufferMonths != null ? String(existingMeta.bufferMonths) : '6');
 
   // purchase
-  const [itemName, setItemName] = useState('');
-  const [monthlySavings, setMonthlySavings] = useState('');
+  const [itemName, setItemName] = useState(existingMeta.itemName ?? '');
+  const [monthlySavings, setMonthlySavings] = useState(existingMeta.monthlySavingsPlan != null ? String(existingMeta.monthlySavingsPlan) : '');
 
   function save() {
     const amt = parseFloat(target);
-    if (!name.trim()) { Alert.alert('Enter a goal name'); return; }
-    if (!amt || amt <= 0) { Alert.alert('Enter a valid target amount'); return; }
+    if (!name.trim()) { LiquidDialog.alert('Enter a goal name'); return; }
+    if (!amt || amt <= 0) { LiquidDialog.alert('Enter a valid target amount'); return; }
 
     let metadata: string | null = null;
     let savedAmount = 0;
@@ -90,15 +102,24 @@ export default function AddGoalScreen({ navigation }: any) {
       icon = 'bag';
     }
 
-    GoalRepository.insert({
-      name: name.trim(), template, targetAmount: amt, savedAmount,
-      currency, priority, isPrimary, icon, metadata,
-    });
-
-    if (isPrimary) {
-      const all = GoalRepository.getAll();
-      const newest = all[0];
-      if (newest) GoalRepository.setPrimary(newest.id);
+    if (isEdit && existing) {
+      GoalRepository.update(existing.id, {
+        name: name.trim(), targetAmount: amt,
+        // preserve existing savedAmount unless this is a loan (where it's derived)
+        savedAmount: template === 'loan' ? savedAmount : existing.savedAmount,
+        currency, priority, icon, metadata,
+      });
+      if (isPrimary && !existing.isPrimary) GoalRepository.setPrimary(existing.id);
+    } else {
+      GoalRepository.insert({
+        name: name.trim(), template, targetAmount: amt, savedAmount,
+        currency, priority, isPrimary, icon, metadata,
+      });
+      if (isPrimary) {
+        const all = GoalRepository.getAll();
+        const newest = all[0];
+        if (newest) GoalRepository.setPrimary(newest.id);
+      }
     }
 
     setGoals(GoalRepository.getAll());
@@ -417,13 +438,15 @@ export default function AddGoalScreen({ navigation }: any) {
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 4 }}>
         <TouchableOpacity onPress={() => {
-          if (step === 'details') setStep('template');
-          else if (step === 'priority') setStep('details');
+          if (step === 'details') {
+            if (isEdit) navigation.goBack();
+            else setStep('template');
+          } else if (step === 'priority') setStep('details');
           else navigation.goBack();
         }} style={{ padding: 8, marginLeft: -8 }}>
           <LiquidIcon name="arrowRt" size={20} color={t.ink} style={{ transform: [{ rotate: '180deg' }] }} />
         </TouchableOpacity>
-        <Text style={{ fontFamily: font.uiBold, fontSize: 18, color: t.ink, marginLeft: 8 }}>New Goal</Text>
+        <Text style={{ fontFamily: font.uiBold, fontSize: 18, color: t.ink, marginLeft: 8 }}>{isEdit ? 'Edit Goal' : 'New Goal'}</Text>
       </View>
 
       {renderStepIndicator()}
@@ -441,7 +464,7 @@ export default function AddGoalScreen({ navigation }: any) {
             else save();
           }}>
           <Text style={{ fontFamily: font.uiBold, fontSize: 16, color: '#051911' }}>
-            {isLast ? 'Create Goal' : 'Continue'}
+            {isLast ? (isEdit ? 'Save Changes' : 'Create Goal') : 'Continue'}
           </Text>
         </PressableScale>
       </View>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, TextInput, ScrollView, Alert, Modal, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, TextInput, ScrollView, Modal, FlatList } from 'react-native';
+import { LiquidDialog } from './LiquidDialog';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { themes, font, accent, accentInk, alpha } from '../theme';
 import { useStore } from '../store';
@@ -60,39 +61,54 @@ function CategoryPicker({ visible, selected, onSelect, onClose, t }: {
 // ==========================================
 // Transaction Form
 // ==========================================
-export const AddTransactionScreen = ({ navigation }: any) => {
+export const AddTransactionScreen = ({ navigation, route }: any) => {
   const { themeMode, setTransactions } = useStore();
   const t = themes[themeMode];
   const aink = accentInk(themeMode);
 
-  const [type, setType] = useState<'DEBIT' | 'CREDIT'>('DEBIT');
-  const [amount, setAmount] = useState('');
-  const [merchant, setMerchant] = useState('');
-  const [category, setCategory] = useState<TxCategory>('OTHER');
+  const existingId: string | undefined = route?.params?.transactionId;
+  const existing = existingId ? TransactionRepository.getById(existingId) : null;
+  const isEdit = !!existing;
+
+  const [type, setType] = useState<'DEBIT' | 'CREDIT'>(existing?.type ?? 'DEBIT');
+  const [amount, setAmount] = useState(existing ? String(existing.amount) : '');
+  const [merchant, setMerchant] = useState(existing?.merchant ?? '');
+  const [category, setCategory] = useState<TxCategory>(
+    (existing?.userCategory ?? existing?.category ?? 'OTHER') as TxCategory,
+  );
   const [showCatPicker, setShowCatPicker] = useState(false);
 
   function save() {
     const amt = parseFloat(amount);
-    if (!amt || amt <= 0) { Alert.alert('Invalid amount'); return; }
-    if (!merchant.trim()) { Alert.alert('Enter a merchant name'); return; }
+    if (!amt || amt <= 0) { LiquidDialog.alert('Invalid amount'); return; }
+    if (!merchant.trim()) { LiquidDialog.alert('Enter a merchant name'); return; }
 
-    TransactionRepository.insert({
-      smsId: `manual-${Date.now()}`,
-      amount: amt,
-      currencyCode: 'INR',
-      merchant: merchant.trim(),
-      category,
-      type,
-      accountReference: null,
-      balance: null,
-      balanceCurrencyCode: null,
-      confidence: 1,
-      rawSms: `Manual: ${merchant.trim()} ${amt}`,
-      sender: 'MANUAL',
-      smsDate: Date.now(),
-      userVerified: true,
-      userCategory: null,
-    });
+    if (isEdit && existing) {
+      TransactionRepository.update(existing.id, {
+        amount: amt,
+        merchant: merchant.trim(),
+        type,
+        userCategory: category,
+      });
+    } else {
+      TransactionRepository.insert({
+        smsId: `manual-${Date.now()}`,
+        amount: amt,
+        currencyCode: 'INR',
+        merchant: merchant.trim(),
+        category,
+        type,
+        accountReference: null,
+        balance: null,
+        balanceCurrencyCode: null,
+        confidence: 1,
+        rawSms: `Manual: ${merchant.trim()} ${amt}`,
+        sender: 'MANUAL',
+        smsDate: Date.now(),
+        userVerified: true,
+        userCategory: null,
+      });
+    }
 
     const fresh = TransactionRepository.getAll(200);
     setTransactions(fresh);
@@ -101,7 +117,7 @@ export const AddTransactionScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }}>
-      <Header title="New Transaction" nav={navigation} t={t} />
+      <Header title={isEdit ? 'Edit Transaction' : 'New Transaction'} nav={navigation} t={t} />
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
 
         <View style={s.tabWrap}>
@@ -143,7 +159,7 @@ export const AddTransactionScreen = ({ navigation }: any) => {
 
       <View style={s.footer}>
         <PressableScale style={[s.btnSave, { backgroundColor: aink }]} onPress={save}>
-          <Text style={[s.btnSaveText, { color: t.bg }]}>Save Transaction</Text>
+          <Text style={[s.btnSaveText, { color: t.bg }]}>{isEdit ? 'Save Changes' : 'Save Transaction'}</Text>
         </PressableScale>
       </View>
     </SafeAreaView>
@@ -153,45 +169,60 @@ export const AddTransactionScreen = ({ navigation }: any) => {
 // ==========================================
 // Subscription Form
 // ==========================================
-export const AddSubscriptionScreen = ({ navigation }: any) => {
+export const AddSubscriptionScreen = ({ navigation, route }: any) => {
   const { themeMode, setTransactions } = useStore();
   const t = themes[themeMode];
   const aink = accentInk(themeMode);
 
-  const [name, setName] = useState('');
-  const [cost, setCost] = useState('');
-  const [cycle, setCycle] = useState<'monthly' | 'yearly'>('monthly');
-  const [startDay, setStartDay] = useState(new Date().getDate().toString());
-  const [startMonth, setStartMonth] = useState((new Date().getMonth() + 1).toString());
-  const [startYear, setStartYear] = useState(new Date().getFullYear().toString());
+  const existingId: string | undefined = route?.params?.transactionId;
+  const existing = existingId ? TransactionRepository.getById(existingId) : null;
+  const isEdit = !!existing;
+  const initDate = existing ? new Date(existing.smsDate) : new Date();
+  const initCycle: 'monthly' | 'yearly' = existing?.rawSms?.includes('yearly') ? 'yearly' : 'monthly';
+
+  const [name, setName] = useState(existing?.merchant ?? '');
+  const [cost, setCost] = useState(existing ? String(existing.amount) : '');
+  const [cycle, setCycle] = useState<'monthly' | 'yearly'>(initCycle);
+  const [startDay, setStartDay] = useState(initDate.getDate().toString());
+  const [startMonth, setStartMonth] = useState((initDate.getMonth() + 1).toString());
+  const [startYear, setStartYear] = useState(initDate.getFullYear().toString());
 
   function save() {
     const amt = parseFloat(cost);
-    if (!amt || amt <= 0) { Alert.alert('Invalid cost'); return; }
-    if (!name.trim()) { Alert.alert('Enter a service name'); return; }
+    if (!amt || amt <= 0) { LiquidDialog.alert('Invalid cost'); return; }
+    if (!name.trim()) { LiquidDialog.alert('Enter a service name'); return; }
 
     const d = parseInt(startDay) || 1;
     const m = parseInt(startMonth) || 1;
     const y = parseInt(startYear) || new Date().getFullYear();
     const startDate = new Date(y, m - 1, d).getTime();
 
-    TransactionRepository.insert({
-      smsId: `sub-${Date.now()}`,
-      amount: amt,
-      currencyCode: 'INR',
-      merchant: name.trim(),
-      category: 'SUBSCRIPTION',
-      type: 'DEBIT',
-      accountReference: null,
-      balance: null,
-      balanceCurrencyCode: null,
-      confidence: 1,
-      rawSms: `Subscription: ${name.trim()} ${amt} ${cycle}`,
-      sender: 'MANUAL',
-      smsDate: startDate,
-      userVerified: true,
-      userCategory: null,
-    });
+    if (isEdit && existing) {
+      TransactionRepository.update(existing.id, {
+        amount: amt,
+        merchant: name.trim(),
+        smsDate: startDate,
+        rawSms: `Subscription: ${name.trim()} ${amt} ${cycle}`,
+      });
+    } else {
+      TransactionRepository.insert({
+        smsId: `sub-${Date.now()}`,
+        amount: amt,
+        currencyCode: 'INR',
+        merchant: name.trim(),
+        category: 'SUBSCRIPTION',
+        type: 'DEBIT',
+        accountReference: null,
+        balance: null,
+        balanceCurrencyCode: null,
+        confidence: 1,
+        rawSms: `Subscription: ${name.trim()} ${amt} ${cycle}`,
+        sender: 'MANUAL',
+        smsDate: startDate,
+        userVerified: true,
+        userCategory: null,
+      });
+    }
 
     const fresh = TransactionRepository.getAll(200);
     setTransactions(fresh);
@@ -200,7 +231,7 @@ export const AddSubscriptionScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }}>
-      <Header title="Add Subscription" nav={navigation} t={t} />
+      <Header title={isEdit ? 'Edit Subscription' : 'Add Subscription'} nav={navigation} t={t} />
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
 
         <FormLabel label="Service Name" t={t} />
@@ -240,7 +271,7 @@ export const AddSubscriptionScreen = ({ navigation }: any) => {
 
       <View style={s.footer}>
         <PressableScale style={[s.btnSave, { backgroundColor: aink }]} onPress={save}>
-          <Text style={[s.btnSaveText, { color: t.bg }]}>Add Subscription</Text>
+          <Text style={[s.btnSaveText, { color: t.bg }]}>{isEdit ? 'Save Changes' : 'Add Subscription'}</Text>
         </PressableScale>
       </View>
     </SafeAreaView>
@@ -253,18 +284,59 @@ export const AddSubscriptionScreen = ({ navigation }: any) => {
 // ==========================================
 // Floating Action Button Component
 // ==========================================
+// ==========================================
+// Shared Top Bar (offline chip + theme toggle + settings cog)
+// ==========================================
+export function TopBar({ onRefresh, refreshing }: { onRefresh?: () => void; refreshing?: boolean } = {}) {
+  const { themeMode, setThemeMode } = useStore();
+  const t = themes[themeMode];
+  // Lazy import to avoid cycle
+  const { useNavigation } = require('@react-navigation/native');
+  const nav = useNavigation();
+  return (
+    <View style={{ paddingVertical: 14, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' }}>
+      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+        <View style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 100, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: t.chipBg }}>
+          <LiquidIcon name="wifiOff" size={11} color={t.inkDim} strokeWidth={1.8} />
+          <Text style={{ fontFamily: font.mono, fontSize: 10, color: t.inkDim }}>offline</Text>
+        </View>
+        {onRefresh && (
+          <TouchableOpacity
+            style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surface }}
+            onPress={onRefresh}
+            activeOpacity={0.7}>
+            <LiquidIcon name="refresh" size={14} color={refreshing ? accent.v : t.inkDim} />
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity
+          style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surface }}
+          onPress={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
+          activeOpacity={0.7}>
+          <LiquidIcon name={themeMode === 'dark' ? 'sun' : 'moon'} size={14} color={t.inkDim} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surface }}
+          onPress={() => nav.navigate('Settings' as never)}
+          activeOpacity={0.7}>
+          <LiquidIcon name="cog" size={14} color={t.inkDim} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 export function FAB({ onPress }: { onPress: () => void }) {
   return (
     <PressableScale
       style={{
-        position: 'absolute', bottom: 110, right: 24,
-        width: 60, height: 60, borderRadius: 30, backgroundColor: accent.v,
+        position: 'absolute', bottom: 100, right: 24,
+        width: 56, height: 56, borderRadius: 28, backgroundColor: accent.v,
         alignItems: 'center', justifyContent: 'center',
         elevation: 8, shadowColor: accent.v, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 10,
       }}
       onPress={onPress}
     >
-      <LiquidIcon name="plus" size={28} color="#FFF" strokeWidth={2.5} />
+      <LiquidIcon name="plus" size={24} color="#FFF" strokeWidth={3} />
     </PressableScale>
   );
 }

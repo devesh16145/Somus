@@ -14,7 +14,7 @@ import { themes, accent, accentInk, font, alpha, ThemeMode } from '../theme';
 import LiquidIcon from '../components/LiquidIcons';
 
 type Nav = NativeStackNavigationProp<RootStackParams, 'Onboarding'>;
-type Step = 'welcome' | 'sms_permission' | 'model_download' | 'done';
+type Step = 'welcome' | 'sms_permission' | 'model_download';
 
 export default function OnboardingScreen() {
   const nav = useNavigation<Nav>();
@@ -65,7 +65,7 @@ export default function OnboardingScreen() {
       await LeapModule.downloadAndLoadModel(model.slug, model.quant);
       setProgress(1); setDownloadProgress(1); setModelLoaded(true);
       setLocalDL(false); setDownloading(false);
-      fadeAnim.setValue(0); setStep('done');
+      nav.replace('Main');
     } catch (e: any) {
       setError(e?.message ?? 'Download failed. Check your internet connection.');
       setLocalDL(false); setDownloading(false);
@@ -87,17 +87,17 @@ export default function OnboardingScreen() {
               
               <Text style={[s.title, { letterSpacing: -1.0, fontSize: 38 }]}>Your data is yours.</Text>
               <Text style={[s.descSm, { marginTop: 4, marginBottom: 36, lineHeight: 24 }]}>
-                Somus secures your SMS financial alerts with military-grade local encryption. We never see your data—because we don't need to.
+                Somus reads your SMS financial alerts on this device only. We never see your data—because we don't need to.
               </Text>
-              
+
               <View style={{ gap: 24, marginBottom: 40 }}>
                 <FeatureRow t={t} icon="chip" title="Zero-Cloud Architecture" sub="All transaction parsing happens 100% on your device. Your data never touches a server." />
                 <FeatureRow t={t} icon="shield" title="End-to-End Privacy" sub="Automated categorizing without human eyes. Private by design, not just by policy." />
-                <FeatureRow t={t} icon="check" title="Biometric Armor" sub="Locked behind your FaceID or Fingerprint. Even if your phone is unlocked, your vault stays closed." />
+                <FeatureRow t={t} icon="home" title="Sandboxed by Android" sub="Your data lives in this app's private storage, isolated from other apps on your device." />
               </View>
 
               <TouchableOpacity style={s.btn} onPress={() => { fadeAnim.setValue(0); setStep('sms_permission'); }}>
-                <Text style={s.btnText}>Secure My Vault &#x2192;</Text>
+                <Text style={s.btnText}>Get Started &#x2192;</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={{ alignSelf: 'center', marginTop: 20, marginBottom: 50 }}>
@@ -105,7 +105,7 @@ export default function OnboardingScreen() {
               </TouchableOpacity>
 
               <View style={{ gap: 12 }}>
-                <CardIconRow t={t} aink={aink} icon="home" title="Local Storage" desc="Encrypted SQLite database living exclusively in your device's secure enclave." />
+                <CardIconRow t={t} aink={aink} icon="home" title="Local Storage" desc="SQLite database stored privately in this app's local storage, accessible only to Somus." />
                 <CardIconRow t={t} aink={aink} icon="dots" title="No Syncing" desc="We intentionally removed cloud sync to eliminate the primary vector for data breaches." />
                 <CardIconRow t={t} aink={aink} icon="chip" title="Open Logic" desc="Our parsing rules are transparent. You see exactly what the app sees and how it sorts." />
               </View>
@@ -113,7 +113,7 @@ export default function OnboardingScreen() {
               <View style={{ alignItems: 'center', marginTop: 60, marginBottom: 20 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
                   <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#8b949e' }} />
-                  <Text style={{ fontFamily: font.mono, fontSize: 11, color: t.mute }}>Encrypted with AES-256</Text>
+                  <Text style={{ fontFamily: font.mono, fontSize: 11, color: t.mute }}>100% On-device · Zero Cloud Sync</Text>
                 </View>
                 <Text style={{ fontFamily: font.mono, fontSize: 10, color: t.mute }}>© 2026 Somus. Your privacy is our architecture.</Text>
               </View>
@@ -131,7 +131,7 @@ export default function OnboardingScreen() {
 
               <View style={s.card}>
                 <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: t.bg, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-                  <LiquidIcon name="dots" size={24} color={t.ink} />
+                  <LiquidIcon name="shield" size={24} color={t.ink} />
                 </View>
                 <Text style={{ fontFamily: font.monoBold, fontSize: 13, color: t.ink, marginBottom: 4 }}>READ_SMS</Text>
                 <Text style={{ fontFamily: font.mono, fontSize: 12, color: t.mute }}>Required to scan incoming and legacy bank receipts.</Text>
@@ -152,7 +152,7 @@ export default function OnboardingScreen() {
 
               <Text style={s.titleMd}>Select AI Engine</Text>
               <Text style={[s.descSm, { marginBottom: 28 }]}>
-                Choose the foundation model that powers your vault. Processing happens entirely on-device, preserving full privacy.
+                Choose the foundation model that powers Somus. Processing happens entirely on-device, preserving full privacy.
               </Text>
 
               <View style={{ gap: 14 }}>
@@ -170,28 +170,17 @@ export default function OnboardingScreen() {
                   </View>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={[s.card, { marginTop: 0, padding: 18 }]} activeOpacity={0.8}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <Text style={{ fontFamily: font.uiBold, fontSize: 16, color: t.ink }}>Ternary Bonsai 1.7B</Text>
-                    <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: t.rule }} />
-                  </View>
-                  <Text style={{ fontFamily: font.ui, fontSize: 13, color: t.mute, lineHeight: 18, marginBottom: 12 }}>Experimental architecture. Slower latency but superior zero-shot categorization logic.</Text>
-                  <View style={{ flexDirection: 'row', gap: 6 }}>
-                    <View style={{ paddingHorizontal: 8, paddingVertical: 4, backgroundColor: alpha(t.ink, 0.05), borderRadius: 6 }}><Text style={{ fontFamily: font.monoBold, fontSize: 9, color: t.inkDim }}>~1.7 GB</Text></View>
-                  </View>
-                </TouchableOpacity>
-
                 <View style={[s.card, { marginTop: 0, padding: 18, opacity: 0.6 }]}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text style={{ fontFamily: font.uiBold, fontSize: 16, color: t.ink }}>LFM 450M VL</Text>
+                      <Text style={{ fontFamily: font.uiBold, fontSize: 16, color: t.ink }}>LFM Vision</Text>
                       <View style={{ paddingHorizontal: 6, paddingVertical: 3, backgroundColor: alpha(t.ink, 0.1), borderRadius: 6 }}>
                         <Text style={{ fontFamily: font.monoBold, fontSize: 9, color: t.inkDim, letterSpacing: 0.5 }}>COMING SOON</Text>
                       </View>
                     </View>
                     <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: t.rule }} />
                   </View>
-                  <Text style={{ fontFamily: font.ui, fontSize: 13, color: t.mute, lineHeight: 18 }}>Vision-Language model enabling physical camera receipt scanning functionality.</Text>
+                  <Text style={{ fontFamily: font.ui, fontSize: 13, color: t.mute, lineHeight: 18 }}>Vision-language model for camera receipt scanning. Available in a future release.</Text>
                 </View>
               </View>
 
@@ -220,22 +209,6 @@ export default function OnboardingScreen() {
             </View>
           )}
 
-          {step === 'done' && (
-            <View style={[s.stepWrap, { alignItems: 'center', justifyContent: 'center' }]}>
-              <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: alpha(accent.v, 0.22), alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
-                <LiquidIcon name="check" size={40} color={aink} strokeWidth={2.5} />
-              </View>
-              <Text style={s.titleMd}>System ready</Text>
-              <Text style={[s.descSm, { textAlign: 'center' }]}>
-                Somus is fully initialized. The AI node is active and running natively on your hardware.
-              </Text>
-              
-              <View style={{ flex: 1 }} />
-              <TouchableOpacity style={s.btn} onPress={() => nav.replace('Main')}>
-                <Text style={s.btnText}>Launch Dashboard</Text>
-              </TouchableOpacity>
-            </View>
-          )}
         </Animated.View>
       </ScrollView>
     </SafeAreaView>

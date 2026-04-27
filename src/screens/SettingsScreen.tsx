@@ -1,83 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { LiquidDialog } from '../components/LiquidDialog';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useStore } from '../store';
-import { LeapModule, MODELS } from '../modules/LeapModule';
-import { SmsOrchestrator } from '../services/SmsOrchestrator';
+import { MODELS } from '../modules/LeapModule';
 import { TransactionRepository } from '../database/TransactionRepository';
 import { themes, accent, accentInk, font, alpha, ThemeMode } from '../theme';
 import LiquidIcon from '../components/LiquidIcons';
 import { RootStackParams } from '../App';
 
-type Period = '7d' | '30d' | '90d' | '180d' | 'custom';
-const PERIODS: { label: string; value: Period; days: number }[] = [
-  { label: '7d',   value: '7d',   days: 7   },
-  { label: '30d',  value: '30d',  days: 30  },
-  { label: '90d',  value: '90d',  days: 90  },
-  { label: '180d', value: '180d', days: 180 },
-  { label: 'Custom', value: 'custom', days: 0 },
-];
-
-type ImportPhase = 'idle' | 'counting' | 'reading' | 'processing' | 'done' | 'error';
-
 export default function SettingsScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  const { modelLoaded, setTransactions, themeMode } = useStore();
+  const {
+    modelLoaded, themeMode,
+    importPhase: phase, importSmsTotal: smsTotal,
+    importProcessed: processed, importTxFound: txFound, importErrorMsg: errorMsg,
+  } = useStore();
   const t = themes[themeMode];
   const aink = accentInk(themeMode);
 
-  const [selectedPeriod, setSelectedPeriod] = useState<Period>('30d');
-  const [customDays, setCustomDays] = useState(60);
   const [txCount, setTxCount] = useState(0);
-
-  // Import state
-  const [phase, setPhase] = useState<ImportPhase>('idle');
-  const [smsTotal, setSmsTotal] = useState(0);
-  const [smsRead, setSmsRead] = useState(0);
-  const [processed, setProcessed] = useState(0);
-  const [txFound, setTxFound] = useState(0);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     setTxCount(TransactionRepository.getCount());
   }, []);
-
-  async function runImport() {
-    if (!modelLoaded) {
-      Alert.alert('AI model not loaded', 'Please complete onboarding first.');
-      return;
-    }
-    const periodObj = PERIODS.find(p => p.value === selectedPeriod)!;
-    const days = selectedPeriod === 'custom' ? customDays : periodObj.days;
-
-    const end = Date.now();
-    const start = end - days * 86400000;
-
-    setPhase('counting');
-    setSmsTotal(0); setSmsRead(0); setProcessed(0); setTxFound(0); setErrorMsg(null);
-
-    try {
-      const n = await SmsOrchestrator.syncPeriod(start, end, {
-        onSmsCount: (total) => { setSmsTotal(total); if (total === 0) setPhase('done'); else setPhase('reading'); },
-        onSmsRead: (read, total) => { setSmsRead(read); setSmsTotal(total); if (read >= total) setPhase('processing'); },
-        onProcessed: (proc, total, found) => { setProcessed(proc); setSmsTotal(total); setTxFound(found); },
-      });
-
-      const fresh = TransactionRepository.getAll(200);
-      setTransactions(fresh);
-      setTxCount(fresh.length);
-      setTxFound(n);
-      setPhase('done');
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? 'Import failed');
-      setPhase('error');
-    }
-  }
-
-  function resetImport() { setPhase('idle'); setErrorMsg(null); }
 
   const progressPct = smsTotal > 0 ? Math.round((processed / smsTotal) * 100) : 0;
   const s = getStyles(t, aink, themeMode);
@@ -121,84 +70,32 @@ export default function SettingsScreen() {
            </View>
         </TouchableOpacity>
 
-        {/* SMS Import Feature */}
-        <View style={s.card}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <View>
+        {/* SMS Import Feature → SyncSms screen */}
+        <TouchableOpacity style={s.card} onPress={() => nav.navigate('SyncSms')} activeOpacity={0.7}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flex: 1 }}>
               <Text style={{ fontFamily: font.uiBold, fontSize: 15, color: t.ink }}>SMS Import & Sync</Text>
-              <Text style={{ fontFamily: font.ui, fontSize: 12, color: t.mute, marginTop: 2 }}>Extract transactions from your inbox</Text>
+              <Text style={{ fontFamily: font.ui, fontSize: 12, color: t.mute, marginTop: 2 }}>
+                {phase === 'idle' ? 'Pick a date range to extract transactions'
+                  : phase === 'done' ? `Last run: ${txFound} tx from ${smsTotal} sms`
+                  : phase === 'aborted' ? `Aborted: ${txFound} tx from ${processed} processed`
+                  : phase === 'error' ? (errorMsg ?? 'Last run failed')
+                  : `Running… ${progressPct}% (${processed}/${smsTotal})`}
+              </Text>
             </View>
-            <View style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: alpha(accent.v, 0.22), borderRadius: 100 }}>
+            <View style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: alpha(accent.v, 0.22), borderRadius: 100, marginRight: 8 }}>
               <Text style={{ fontFamily: font.monoBold, fontSize: 10, color: aink }}>{phase}</Text>
             </View>
+            <LiquidIcon name="chevron" size={16} color={t.mute} style={{ transform: [{ rotate: '-90deg' }] }} />
           </View>
-
-          {(phase === 'idle' || phase === 'error' || phase === 'done') ? (
-            <>
-              <View style={s.pillRow}>
-                {PERIODS.map((p) => {
-                  const on = selectedPeriod === p.value;
-                  return (
-                    <TouchableOpacity key={p.value} style={[s.pill, on && s.pillOn]} onPress={() => setSelectedPeriod(p.value)}>
-                      <Text style={[s.pillText, on && s.pillTextOn]}>{p.label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-              
-              {selectedPeriod === 'custom' && (
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-                  <View style={{ flex: 1, backgroundColor: t.chipBg, padding: 12, borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <View>
-                      <Text style={{ fontFamily: font.mono, fontSize: 10, color: t.mute, marginBottom: 4 }}>Period</Text>
-                      <Text style={{ fontFamily: font.uiBold, fontSize: 13, color: t.ink }}>{customDays} days</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', gap: 4 }}>
-                      <TouchableOpacity onPress={() => setCustomDays(Math.max(1, customDays - 1))} style={{ padding: 4 }}>
-                         <LiquidIcon name="chevron" size={16} color={t.inkDim} style={{ transform: [{ rotate: '180deg' }] }} />
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => setCustomDays(customDays + 1)} style={{ padding: 4 }}>
-                         <LiquidIcon name="chevron" size={16} color={t.inkDim} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                  <View style={{ flex: 1, backgroundColor: t.chipBg, padding: 12, borderRadius: 12, justifyContent: 'center' }}>
-                    <Text style={{ fontFamily: font.mono, fontSize: 10, color: t.mute, marginBottom: 4 }}>To</Text>
-                    <Text style={{ fontFamily: font.uiBold, fontSize: 13, color: t.ink }}>Today</Text>
-                  </View>
-                </View>
-              )}
-
-              {phase === 'error' && <Text style={{ color: '#ef4444', fontFamily: font.mono, fontSize: 11, marginTop: 12 }}>{errorMsg}</Text>}
-              {phase === 'done' && <Text style={{ color: aink, fontFamily: font.mono, fontSize: 11, marginTop: 12 }}>Imported {txFound} transactions from {smsTotal} messages.</Text>}
-              
-              <TouchableOpacity style={s.importBtn} onPress={phase === 'done' ? resetImport : runImport} disabled={!modelLoaded}>
-                <Text style={s.importBtnText}>
-                  {!modelLoaded ? 'AI disabled' : phase === 'done' ? 'Reset state' : 'Run Extractor \u2192'}
-                </Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <View style={{ marginTop: 12 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                <Text style={{ fontFamily: font.mono, fontSize: 10, color: t.inkDim }}>
-                  {phase === 'counting' ? 'counting...' : phase === 'reading' ? 'reading sandbox...' : 'inferencing...'}
-                </Text>
-                <Text style={{ fontFamily: font.monoBold, fontSize: 10, color: aink }}>
-                  {progressPct}% · {processed} / {smsTotal}
-                </Text>
-              </View>
-              <View style={{ height: 6, backgroundColor: t.chipBg, borderRadius: 3, overflow: 'hidden' }}>
-                <View style={{ width: `${progressPct}%`, height: '100%', backgroundColor: accent.v, borderRadius: 3, boxShadow: `0 0 12px ${accent.v}` }} />
-              </View>
-            </View>
-          )}
-        </View>
+        </TouchableOpacity>
 
         {/* Global Navigation List */}
         <View style={[s.card, { paddingVertical: 8, paddingHorizontal: 0 }]}>
-           <SettingRow t={t} icon="dots" name="SMS Permissions & Sync" sub="Private scraping, automated tracking" onPress={() => nav.navigate('SmsPermissions')} />
-           <SettingRow t={t} icon="bag" name="Notifications" sub="Spending alerts, vault updates" last onPress={() => nav.navigate('Notifications')} />
+           <SettingRow t={t} icon="shield" name="SMS Permissions & Sync" sub="Private scraping, automated tracking" onPress={() => nav.navigate('SmsPermissions')} />
+           <SettingRow t={t} icon="bolt" name="Notifications" sub="Spending alerts, system updates" onPress={() => nav.navigate('Notifications')} />
+           <SettingRow t={t} icon="download" name="Backup & Restore" sub="Export portable file, import on reinstall" onPress={() => nav.navigate('Backup')} />
+           <SettingRow t={t} icon="cog" name="Crash Logs" sub="Local-only diagnostics, share manually" last onPress={() => nav.navigate('CrashLogs')} />
         </View>
 
         {/* Footer */}
@@ -244,13 +141,5 @@ function getStyles(t: any, aink: string, mode: ThemeMode) {
     statsMain: { fontFamily: font.uiBold, fontSize: 16, color: t.ink },
     statsSub: { fontFamily: font.mono, fontSize: 10, color: t.mute },
 
-    pillRow: { flexDirection: 'row', gap: 6 },
-    pill: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 12, backgroundColor: t.chipBg },
-    pillOn: { backgroundColor: accent.v },
-    pillText: { fontFamily: font.monoBold, fontSize: 11, color: t.inkDim },
-    pillTextOn: { color: mode === 'dark' ? '#0D0D0D' : '#FFFFFF' },
-
-    importBtn: { marginTop: 14, width: '100%', paddingVertical: 14, backgroundColor: t.ink === '#f2f2f5' ? '#f2f2f5' : t.ink, borderRadius: 16, alignItems: 'center' },
-    importBtnText: { fontFamily: font.display, fontSize: 14, color: t.bg, fontWeight: '600' },
   });
 }

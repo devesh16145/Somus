@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, Modal, FlatList, Alert
+  TouchableOpacity, Modal, FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { LiquidDialog } from '../components/LiquidDialog';
 
 import { useStore } from '../store';
 import { TransactionRepository } from '../database/TransactionRepository';
@@ -38,14 +40,33 @@ export default function TransactionDetailScreen() {
   }
 
   function promptDelete() {
-    Alert.alert('Delete Transaction', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => {
-          TransactionRepository.delete(tx!.id);
-          deleteTransaction(tx!.id);
-          nav.goBack();
-      }}
-    ]);
+    LiquidDialog.show({
+      title: 'Delete Transaction',
+      message: 'This cannot be undone.',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => {
+            TransactionRepository.delete(tx!.id);
+            deleteTransaction(tx!.id);
+            nav.goBack();
+        }},
+      ],
+    });
+  }
+
+  function openMenu() {
+    LiquidDialog.show({
+      title: tx!.merchant || tx!.sender || 'Transaction',
+      message: 'What would you like to do?',
+      buttons: [
+        {
+          text: 'Edit details',
+          onPress: () => (nav as any).navigate('AddTransaction', { transactionId: tx!.id }),
+        },
+        { text: 'Delete', style: 'destructive', onPress: promptDelete },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    });
   }
 
   const s = getStyles(t, aink);
@@ -61,7 +82,7 @@ export default function TransactionDetailScreen() {
           <Text style={{ fontSize: 18, color: t.ink, transform: [{ rotate: '180deg' }], marginBottom: 2 }}>&#x203A;</Text>
         </TouchableOpacity>
         <Text style={{ fontFamily: font.mono, fontSize: 11, color: t.mute }}>tx_{tx.id.substring(0, 6)}</Text>
-        <TouchableOpacity onPress={promptDelete} style={s.navBtn}>
+        <TouchableOpacity onPress={openMenu} style={s.navBtn}>
           <LiquidIcon name="dots" size={16} color={t.ink} />
         </TouchableOpacity>
       </View>

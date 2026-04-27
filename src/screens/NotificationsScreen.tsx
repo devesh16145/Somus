@@ -15,7 +15,7 @@ export default function NotificationsScreen() {
   const [spendingAlerts, setSpendingAlerts] = useState(true);
   const [subReminders, setSubReminders] = useState(true);
   const [goalMilestones, setGoalMilestones] = useState(true);
-  const [vaultUpdates, setVaultUpdates] = useState(false);
+  const [systemUpdates, setSystemUpdates] = useState(false);
 
   const s = StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
@@ -39,7 +39,7 @@ export default function NotificationsScreen() {
         <View style={s.card}>
            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: alpha(aink, 0.15), alignItems: 'center', justifyContent: 'center' }}>
-               <LiquidIcon name="bag" size={20} color={aink} />
+               <LiquidIcon name="bolt" size={20} color={aink} />
              </View>
              <View style={{ flex: 1 }}>
                <Text style={{ fontFamily: font.uiBold, fontSize: 16, color: t.ink }}>Alert Preferences</Text>
@@ -73,10 +73,10 @@ export default function NotificationsScreen() {
 
            <View style={s.settingRow}>
              <View style={{ flex: 1 }}>
-               <Text style={s.settingTitle}>Vault System Updates</Text>
+               <Text style={s.settingTitle}>System Updates</Text>
                <Text style={s.settingSub}>Receive engineering pings for AI optimization checks and backups.</Text>
              </View>
-             <Switch value={vaultUpdates} onValueChange={setVaultUpdates} trackColor={{ true: aink }} />
+             <Switch value={systemUpdates} onValueChange={setSystemUpdates} trackColor={{ true: aink }} />
            </View>
 
         </View>

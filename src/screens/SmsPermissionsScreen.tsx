@@ -38,7 +38,7 @@ export default function SmsPermissionsScreen() {
         <View style={s.card}>
            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12 }}>
              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: alpha(aink, 0.15), alignItems: 'center', justifyContent: 'center' }}>
-               <LiquidIcon name="dots" size={20} color={aink} />
+               <LiquidIcon name="shield" size={20} color={aink} />
              </View>
              <View style={{ flex: 1 }}>
                <Text style={{ fontFamily: font.uiBold, fontSize: 16, color: t.ink }}>Inbox Sync</Text>

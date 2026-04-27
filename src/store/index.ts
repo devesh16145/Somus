@@ -11,6 +11,7 @@ interface Store {
   transactions: Transaction[];
   setTransactions: (t: Transaction[]) => void;
   prependTransaction: (t: Transaction) => void;
+  updateTransaction: (id: string, patch: Partial<Transaction>) => void;
   updateCategory: (id: string, cat: TxCategory) => void;
   deleteTransaction: (id: string) => void;
   deleteTransactions: (ids: string[]) => void;
@@ -35,6 +36,25 @@ interface Store {
   setTxFoundCount: (v: number) => void;
   setPendingCount: (v: number) => void;
 
+  importPhase: 'idle' | 'counting' | 'reading' | 'processing' | 'done' | 'error' | 'aborted';
+  importSmsTotal: number;
+  importSmsRead: number;
+  importProcessed: number;
+  importTxFound: number;
+  importErrorMsg: string | null;
+  importAbort: boolean;
+  importStartMs: number | null;
+  importEndMs: number | null;
+  setImportPhase: (v: Store['importPhase']) => void;
+  setImportSmsTotal: (v: number) => void;
+  setImportSmsRead: (v: number) => void;
+  setImportProcessed: (v: number) => void;
+  setImportTxFound: (v: number) => void;
+  setImportErrorMsg: (v: string | null) => void;
+  setImportAbort: (v: boolean) => void;
+  setImportRange: (start: number | null, end: number | null) => void;
+  resetImportState: () => void;
+
   themeMode: ThemeMode;
   setThemeMode: (v: ThemeMode) => void;
 
@@ -49,6 +69,9 @@ export const useStore = create<Store>((set) => ({
   transactions: [],
   setTransactions: (transactions) => set({ transactions }),
   prependTransaction: (t) => set((s) => ({ transactions: [t, ...s.transactions] })),
+  updateTransaction: (id, patch) => set((s) => ({
+    transactions: s.transactions.map((t) => (t.id === id ? { ...t, ...patch, userVerified: true } : t)),
+  })),
   updateCategory: (id, cat) => set((s) => ({
     transactions: s.transactions.map((t) =>
       t.id === id ? { ...t, userCategory: cat, userVerified: true } : t
@@ -74,6 +97,35 @@ export const useStore = create<Store>((set) => ({
   setSmsTotalCount: (smsTotalCount) => set({ smsTotalCount }),
   setTxFoundCount: (txFoundCount) => set({ txFoundCount }),
   setPendingCount: (pendingCount) => set({ pendingCount }),
+
+  importPhase: 'idle',
+  importSmsTotal: 0,
+  importSmsRead: 0,
+  importProcessed: 0,
+  importTxFound: 0,
+  importErrorMsg: null,
+  importAbort: false,
+  importStartMs: null,
+  importEndMs: null,
+  setImportPhase: (importPhase) => set({ importPhase }),
+  setImportSmsTotal: (importSmsTotal) => set({ importSmsTotal }),
+  setImportSmsRead: (importSmsRead) => set({ importSmsRead }),
+  setImportProcessed: (importProcessed) => set({ importProcessed }),
+  setImportTxFound: (importTxFound) => set({ importTxFound }),
+  setImportErrorMsg: (importErrorMsg) => set({ importErrorMsg }),
+  setImportAbort: (importAbort) => set({ importAbort }),
+  setImportRange: (importStartMs, importEndMs) => set({ importStartMs, importEndMs }),
+  resetImportState: () => set({
+    importPhase: 'idle',
+    importSmsTotal: 0,
+    importSmsRead: 0,
+    importProcessed: 0,
+    importTxFound: 0,
+    importErrorMsg: null,
+    importAbort: false,
+    importStartMs: null,
+    importEndMs: null,
+  }),
 
   themeMode: 'light' as ThemeMode,
   setThemeMode: (themeMode) => set({ themeMode }),

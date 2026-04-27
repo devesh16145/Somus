@@ -9,18 +9,45 @@ import LiquidIcon from '../components/LiquidIcons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParams } from '../App';
-import { FAB } from '../components/ActionViews';
+import { FAB, TopBar } from '../components/ActionViews';
 import { TransactionRepository } from '../database/TransactionRepository';
 import { Transaction, effectiveCategory } from '../types/Transaction';
+import { LiquidDialog } from '../components/LiquidDialog';
 
 export default function SubscriptionsScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  const { transactions, themeMode } = useStore();
+  const { transactions, setTransactions, deleteTransaction, themeMode } = useStore();
   const t = themes[themeMode];
   const aink = accentInk(themeMode);
 
   // Filter subscription transactions from the global store
   const subs = transactions.filter(tx => effectiveCategory(tx) === 'SUBSCRIPTION');
+
+  function openSubMenu(tx: Transaction) {
+    LiquidDialog.show({
+      title: tx.merchant,
+      message: 'What would you like to do?',
+      buttons: [
+        { text: 'Edit', onPress: () => nav.navigate('AddSubscription', { transactionId: tx.id }) },
+        {
+          text: 'Delete', style: 'destructive', onPress: () => {
+            LiquidDialog.show({
+              title: 'Delete subscription?',
+              message: tx.merchant,
+              buttons: [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete', style: 'destructive', onPress: () => {
+                  TransactionRepository.delete(tx.id);
+                  deleteTransaction(tx.id);
+                }},
+              ],
+            });
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    });
+  }
 
   const s = getStyles(t, aink);
 
@@ -28,15 +55,8 @@ export default function SubscriptionsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }} edges={['top']}>
+      <TopBar />
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={s.header}>
-          <Text style={s.headerTitle}>Subscriptions</Text>
-          <TouchableOpacity>
-            <LiquidIcon name="cog" size={24} color={aink} />
-          </TouchableOpacity>
-        </View>
-
         {/* Hero */}
         <View style={s.hero}>
           <Text style={s.heroLabel}>Active Subscriptions</Text>
@@ -60,6 +80,8 @@ export default function SubscriptionsScreen() {
                 sub={new Date(tx.smsDate).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
                 amount={`₹${tx.amount.toLocaleString()}`}
                 cycle={tx.type === 'DEBIT' ? 'Recurring' : 'One-time'}
+                onPress={() => nav.navigate('AddSubscription', { transactionId: tx.id })}
+                onLongPress={() => openSubMenu(tx)}
               />
             ))}
           </View>
@@ -68,7 +90,7 @@ export default function SubscriptionsScreen() {
         {/* Suggestion Card */}
         <View style={[s.card, { backgroundColor: alpha(aink, 0.05) }]}>
           <View style={s.cardHeader}>
-            <LiquidIcon name="sun" size={18} color={aink} />
+            <LiquidIcon name="star" size={18} color={aink} />
             <Text style={[s.cardTitle, { color: aink }]}>Intelligent Suggestion</Text>
           </View>
           <Text style={s.cardDesc}>
@@ -96,9 +118,13 @@ function ProgressRow({ label, amount, pct, color, t }: any) {
   );
 }
 
-function ServiceRow({ t, icon, iconColor, bg, name, sub, subColor, amount, cycle }: any) {
+function ServiceRow({ t, icon, iconColor, bg, name, sub, subColor, amount, cycle, onPress, onLongPress }: any) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: t.surface, padding: 16, borderRadius: 20, marginBottom: 12, borderWidth: 1, borderColor: t.rule }}>
+    <TouchableOpacity
+      activeOpacity={onPress ? 0.75 : 1}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: t.surface, padding: 16, borderRadius: 20, marginBottom: 12, borderWidth: 1, borderColor: t.rule }}>
       <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
         <LiquidIcon name={icon} size={20} color={iconColor} strokeWidth={2} />
       </View>
@@ -110,7 +136,7 @@ function ServiceRow({ t, icon, iconColor, bg, name, sub, subColor, amount, cycle
         <Text style={{ fontFamily: font.monoBold, fontSize: 15, color: t.ink, marginBottom: 2 }}>{amount}</Text>
         <Text style={{ fontFamily: font.mono, fontSize: 10, color: t.mute }}>{cycle}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

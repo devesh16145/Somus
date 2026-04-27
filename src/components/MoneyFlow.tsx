@@ -20,9 +20,10 @@ interface Props {
   expense: number;
   currency: string;
   themeMode: ThemeMode;
+  title?: string;
 }
 
-export function MoneyFlow({ income, budget, expense, currency, themeMode }: Props) {
+export function MoneyFlow({ income, budget, expense, currency, themeMode, title = 'This month' }: Props) {
   const t = themes[themeMode];
   if (income === 0 && expense === 0 && budget == null) return null;
 
@@ -60,8 +61,10 @@ export function MoneyFlow({ income, budget, expense, currency, themeMode }: Prop
   return (
     <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.rule }]}>
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: t.ink }]}>This month</Text>
-        <Text style={[styles.headerSub, { color: t.mute }]}>salary · budget · spend</Text>
+        <Text style={[styles.headerTitle, { color: t.ink }]}>{title}</Text>
+        <Text style={[styles.headerSub, { color: t.mute }]}>
+          {budget != null ? 'salary · budget · spend' : 'salary · spend'}
+        </Text>
       </View>
       {bars.map((b) => (
         <Bar key={b.label} {...b} currency={currency} t={t} />

@@ -20,9 +20,10 @@ Every existing expense tracker wants you to hand over read access to your SMS in
 ## Features
 
 - Reads SMS inbox and processes messages through the on-device model
-- Live transaction detection — new bank SMS arrives → foreground service runs inference → transaction appears in UI within ~1 minute
+- User-triggered sync — pick a date range or tap "Run" on the dashboard's pending banner to process new bank SMS through the model
 - SQLite storage with deduplication by SMS ID
-- Dashboard, transaction list, and per-transaction detail screens
+- Dashboard, transaction list, budgets, goals, subscriptions, and per-transaction detail screens
+- Local backup / restore (export and import the transaction database as JSON)
 - Supports 40+ banks across 15 countries via sender-format hints
 
 ## Architecture
@@ -39,32 +40,34 @@ Every existing expense tracker wants you to hand over read access to your SMS in
 - **Finetune:** [`9eve5h/somus-lfm-1.2b-sms`](https://huggingface.co/9eve5h/somus-lfm-1.2b-sms) on Hugging Face
 - **Quantization:** Q4_K_M GGUF (~700 MB download, ~5 GB RAM at inference)
 - **Output:** structured JSON via `@Generatable` schema constraint
-- **Inference:** ~60–90s per SMS on a Pixel 9 (single-threaded CPU)
+- **Inference:** ~10s per SMS on a Pixel 9 (single-threaded CPU)
 
 ### Data flow
 ```
-Bank SMS
-   │
-   ├── historical: SmsModule.fetchPeriod ──┐
-   │                                        ▼
-   └── live:      SmsReceiver ──▶ ForegroundService
-                                           │
-                                           ▼
-                                   LeapModule.processSms
-                                           │
-                                           ▼
-                                   Structured transaction
-                                           │
-                                           ▼
-                                  SQLite (dedup on sms_id)
-                                           │
-                                           ▼
-                                    Zustand store → UI
+Bank SMS (inbox)
+       │
+       ▼
+SmsModule.fetchPeriod / fetchSince  (user-triggered)
+       │
+       ▼
+SmsOrchestrator  (batches of 50)
+       │
+       ▼
+LeapModule batch inference
+       │
+       ▼
+Structured transaction  (@Generatable schema)
+       │
+       ▼
+SQLite (dedup on sms_id)
+       │
+       ▼
+Zustand store → UI
 ```
 
 ### Native bridges
 - **`SmsModule`** (`android/.../sms/SmsModule.kt` ↔ `src/modules/SmsModule.ts`) — ContentResolver-based SMS inbox reader. Emits `SmsProgress` and `SmsBatch` events.
-- **`LeapModule`** (`android/.../leap/LeapAll.kt` ↔ `src/modules/LeapModule.ts`) — Downloads and loads the model, runs inference, emits `LeapModelProgress` / `LeapLiveTransaction` events.
+- **`LeapModule`** (`android/.../leap/LeapAll.kt` ↔ `src/modules/LeapModule.ts`) — Downloads and loads the model, runs single/batch inference, unloads. Emits `LeapModelProgress` and `LeapBatchProgress` events.
 
 ## Build & run
 
@@ -100,11 +103,10 @@ cd android
 
 | Permission | Purpose |
 |---|---|
-| `READ_SMS` | Read historical messages from the inbox |
-| `RECEIVE_SMS` | Detect newly arriving bank SMS |
+| `READ_SMS` | Read messages from the inbox for processing |
 | `INTERNET` | One-time model download from Hugging Face |
-| `POST_NOTIFICATIONS` | Model download and live processing notifications |
-| `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_DATA_SYNC` | Run model download and live inference in a foreground service |
+| `POST_NOTIFICATIONS` | Progress notifications for model download |
+| `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_DATA_SYNC` | Keep the model download alive when the app is backgrounded |
 | `WAKE_LOCK` | Prevent sleep during inference |
 
 ## Repository layout
@@ -114,16 +116,19 @@ src/
   App.tsx                # Root navigator
   modules/               # Native module TS bindings (LeapModule, SmsModule)
   services/              # SmsOrchestrator — batching + pipeline glue
-  screens/               # Onboarding, Dashboard, Transactions, Settings, Detail
+  screens/               # Onboarding, Dashboard, Transactions, SyncSms, Backup,
+                         # Budget, Goals, Subscriptions, Settings, Detail, …
+  components/            # Liquid OS UI kit (LiquidIcons, LiquidDialog, MoneyFlow, …)
   store/                 # Zustand store
   database/              # SQLite schema + TransactionRepository
+  theme.ts               # Liquid OS theme tokens (light/dark)
   types/                 # Shared TS types
 
 android/app/src/main/java/com/somus/app/
   MainActivity.kt
   MainApplication.kt
-  sms/                   # SmsModule + SmsReceiver + SmsForegroundService
-  leap/                  # LeapModule, LeapService, BankFormatRegistry
+  sms/                   # SmsModule + SmsSupport (ContentResolver SMS reader)
+  leap/                  # LeapAll (LeapModule + BankFormatRegistry + schema)
 
 # Finetune pipeline (not part of the app build)
 auto_labeler.py             # Heuristic pre-labeling of raw SMS

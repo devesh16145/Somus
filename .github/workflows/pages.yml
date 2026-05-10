@@ -1,0 +1,89 @@
+name: Deploy site to GitHub Pages
+
+# Auto-publishes the privacy policy from play-store/privacy-policy.md
+# to https://devesh16145.github.io/Somus/privacy/ on every push to main
+# that touches the policy or this workflow.
+#
+# One-time setup the user must do in repo Settings:
+#   Settings → Pages → Build and deployment → Source: GitHub Actions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'play-store/privacy-policy.md'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One in-flight deployment at a time; later pushes wait for earlier ones to finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Synthesize Jekyll source
+        run: |
+          set -euo pipefail
+          mkdir -p site
+
+          cat > site/_config.yml <<'YAML'
+          title: Somus
+          description: Privacy-first, on-device finance tracker for Android
+          theme: jekyll-theme-cayman
+          show_downloads: false
+          plugins:
+            - jekyll-relative-links
+          relative_links:
+            enabled: true
+            collections: false
+          YAML
+
+          cat > site/index.md <<'MD'
+          ---
+          layout: default
+          title: Somus
+          ---
+
+          # Somus
+
+          Privacy-first, on-device finance tracker for Android.
+
+          - [Privacy policy](./privacy/)
+          - [Source on GitHub](https://github.com/devesh16145/Somus)
+          - Contact: [devesh.iiitd@gmail.com](mailto:devesh.iiitd@gmail.com)
+          MD
+
+          # Render privacy policy as a Jekyll page at /privacy/
+          {
+            printf -- '---\nlayout: default\ntitle: Privacy Policy\npermalink: /privacy/\n---\n\n'
+            cat play-store/privacy-policy.md
+          } > site/privacy.md
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./site
+          destination: ./_site
+
+      - uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

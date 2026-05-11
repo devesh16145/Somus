@@ -10,7 +10,7 @@ freely — I drafted from CLAUDE.md, the manifest, and the SMS-policy research.
 | `listing.md` | Store listing copy: title, short/long description, what's-new | Main store listing |
 | `permissions-declaration.md` | Justification text for the SMS Permissions Declaration | App content → Sensitive permissions |
 | `data-safety.md` | Field-by-field answers for the Data Safety form | App content → Data safety |
-| `privacy-policy.md` | Public privacy policy (host on GitHub Pages) | Store listing → Privacy policy URL |
+| `privacy-policy.md` | Public privacy policy (rendered by `web/` and deployed to Vercel) | Store listing → Privacy policy URL |
 | `video-script.md` | 60–90 sec demo recording script (required by SMS declaration) | Upload to YouTube unlisted, link in declaration |
 | `submission-checklist.md` | End-to-end pre-submission checklist | Operational |
 

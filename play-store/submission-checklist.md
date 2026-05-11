@@ -41,8 +41,8 @@ Run through this in order before hitting "Submit for review" in the Play Console
 
 ## 5. Privacy policy hosting
 
-- [ ] Rendered `privacy-policy.md` to HTML/markdown
-- [ ] Hosted on a stable HTTPS URL (recommend GitHub Pages on the existing repo)
+- [ ] Vercel project connected to `devesh16145/Somus`, Root Directory set to `web/` (see `web/README.md`)
+- [ ] First deploy succeeded — confirm at `https://<project>.vercel.app/privacy`
 - [ ] URL pasted into Play Console → Store listing → Privacy policy
 - [ ] Verified URL loads from a clean browser without auth
 

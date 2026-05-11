@@ -1,0 +1,12 @@
+{
+  "name": "somus-site",
+  "private": true,
+  "type": "module",
+  "description": "Static site for Somus — landing page + privacy policy. Deployed to Vercel.",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "marked": "^14.1.3"
+  }
+}

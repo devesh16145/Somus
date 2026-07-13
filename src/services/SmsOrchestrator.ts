@@ -29,11 +29,22 @@ const FINANCIAL_KEYWORDS = [
   '출금', '입금', '결제', '이체', '잔액',
   // Symbols
   '₹', '$', '€', '£', '¥', '₩', 'aed', 'kes', 'php',
+  // English (money movement without "debited/credited")
+  'withdrawn', 'received', 'paid',
+];
+
+// Patterns that need word boundaries — plain substring matching would
+// false-positive on words like "offers" (contains "rs").
+const FINANCIAL_PATTERNS = [
+  /\b(?:rs\.?|inr)\s*\d/i, // Rs.500 / Rs 500 / INR 500
+  /\ba\/c\b/i,             // A/C x1234
+  /\bacct\b/i,
 ];
 
 function isLikelyFinancial(body: string): boolean {
   const lower = body.toLowerCase();
-  return FINANCIAL_KEYWORDS.some((k) => lower.includes(k));
+  return FINANCIAL_KEYWORDS.some((k) => lower.includes(k)) ||
+    FINANCIAL_PATTERNS.some((p) => p.test(body));
 }
 
 export interface SyncCallbacks {
@@ -72,10 +83,19 @@ export const SmsOrchestrator = {
     callbacks?.onSmsRead?.(msgs.length, total);
     if (callbacks?.shouldAbort?.()) throw new AbortedError();
 
-    // Step 3: Process each SMS through AI one at a time for real-time progress
+    // Step 3: Process each SMS through AI one at a time for real-time progress.
+    // Deliberately NO keyword prefilter here: a hard filter on a manual import
+    // silently dropped real bank SMS in the field (2026-07-12, 0/43 processed).
+    // The model itself decides isFinancial. Keyword filtering is only used for
+    // the cheap pending-badge count, where a false negative self-corrects.
     const found = await runInference(msgs, callbacks);
 
-    TransactionRepository.updateSyncState(Date.now(), found);
+    // Advance the bookmark only to the end of the imported window (never past
+    // "now", never backwards) so SMS between an old window and today still
+    // show up as pending instead of being skipped forever.
+    const { lastSyncTs } = TransactionRepository.getSyncState();
+    const bookmark = Math.max(lastSyncTs, Math.min(endMs, Date.now()));
+    TransactionRepository.updateSyncState(bookmark, found);
     return found;
   },
 
@@ -155,8 +175,9 @@ function txResultToInsert(r: TxResult): Omit<Transaction, 'id' | 'createdAt'> {
     smsId: `${r.sender}_${r.smsDate}`,
     amount: r.amount, currencyCode: r.currencyCode, merchant: r.merchant,
     category: r.category as TxCategory, type: r.type,
-    accountReference: r.accountReference, balance: r.balance,
-    balanceCurrencyCode: r.balanceCurrencyCode, confidence: r.confidence,
+    // Balance isn't part of the model's schema — the native side never emits it
+    accountReference: r.accountReference, balance: null,
+    balanceCurrencyCode: null, confidence: r.confidence,
     rawSms: r.rawSms, sender: r.sender, smsDate: r.smsDate,
     userVerified: false, userCategory: null,
   };

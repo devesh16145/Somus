@@ -15,6 +15,7 @@ import { TransactionRepository } from '../database/TransactionRepository';
 import { BudgetRepository } from '../database/BudgetRepository';
 import { BudgetEngine } from '../services/BudgetEngine';
 import { SmsOrchestrator } from '../services/SmsOrchestrator';
+import { SmsModule } from '../modules/SmsModule';
 import { CATEGORY_LABELS, Transaction } from '../types/Transaction';
 import { TxCategory } from '../modules/LeapModule';
 import { RootStackParams } from '../App';
@@ -113,6 +114,7 @@ export default function DashboardScreen() {
     setProcessError(null);
     setSyncing(true);
     setProcessProgress({ done: 0, total: pendingCount, found: 0 });
+    SmsModule.setKeepScreenOn(true);
     try {
       const found = await SmsOrchestrator.syncPending({
         onProcessed: (done, total, foundSoFar) => {
@@ -127,6 +129,7 @@ export default function DashboardScreen() {
     } catch (e: any) {
       setProcessError(e?.message ?? 'Processing failed');
     } finally {
+      SmsModule.setKeepScreenOn(false);
       setSyncing(false);
       setSyncProgress(null);
       setTimeout(() => setProcessProgress(null), 2000);

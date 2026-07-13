@@ -25,6 +25,8 @@ export const LeapModule = {
   processBatch: (msgs: Array<{ sender: string; body: string; date: number }>): Promise<TxResult[]> =>
     NativeLeap.processBatch(msgs),
   isModelLoaded: (): Promise<boolean> => NativeLeap.isModelLoaded(),
+  isModelDownloaded: (slug: string, quant: string): Promise<boolean> =>
+    NativeLeap.isModelDownloaded(slug, quant),
   unloadModel: (): Promise<boolean> => NativeLeap.unloadModel(),
   onModelProgress: (cb: (e: { progress: number }) => void) =>
     leapEmitter.addListener('LeapModelProgress', cb),

@@ -16,6 +16,7 @@ export const SmsModule = {
   countInPeriod: (s: number, e: number): Promise<number> =>
     Native.countInPeriod(s, e),
   hasPermission: (): Promise<boolean> => Native.hasPermission(),
+  setKeepScreenOn: (on: boolean): void => Native.setKeepScreenOn(on),
   onProgress: (cb: (e: any) => void) => emitter.addListener('SmsProgress', cb),
   onBatch: (cb: (e: any) => void) => emitter.addListener('SmsBatch', cb),
 };

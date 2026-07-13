@@ -77,6 +77,9 @@ export default function SyncSmsScreen() {
     setImportRange(startMs, endMs);
     setImportPhase('counting');
 
+    // Window flag, not a screen prop — survives navigating away while the
+    // sync keeps running. Android kills long syncs if the screen sleeps.
+    SmsModule.setKeepScreenOn(true);
     try {
       await SmsOrchestrator.syncPeriod(startMs, endMs, {
         onSmsCount: (total) => {
@@ -110,6 +113,7 @@ export default function SyncSmsScreen() {
       }
     } finally {
       setImportAbort(false);
+      SmsModule.setKeepScreenOn(false);
     }
   }
 
@@ -210,7 +214,7 @@ export default function SyncSmsScreen() {
                 <View style={{ width: `${progressPct}%`, height: '100%', backgroundColor: aborting ? '#ef4444' : accent.v, borderRadius: 3 }} />
               </View>
               <Text style={{ fontFamily: font.mono, fontSize: 10, color: t.mute, marginTop: 6 }}>
-                {txFound} transactions found · runs in background
+                {txFound} transactions found · screen stays awake while syncing
               </Text>
               <TouchableOpacity
                 style={[s.actionBtn, { marginTop: 14, backgroundColor: alpha('#ef4444', aborting ? 0.08 : 0.15) }]}
@@ -244,8 +248,8 @@ export default function SyncSmsScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
             <LiquidIcon name="shield" size={16} color={aink} />
             <View style={{ flex: 1 }}>
-              <Text style={[s.cardTitle, { color: aink }]}>Background-safe</Text>
-              <Text style={s.cardDesc}>You can leave this screen and the sync keeps running. Come back anytime to see progress or abort.</Text>
+              <Text style={[s.cardTitle, { color: aink }]}>Keeps running in-app</Text>
+              <Text style={s.cardDesc}>You can switch to other screens and the sync keeps running — come back anytime to see progress or abort. Keep the app open; Android pauses it if you switch away.</Text>
             </View>
           </View>
         </View>

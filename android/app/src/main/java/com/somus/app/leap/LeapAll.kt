@@ -177,6 +177,13 @@ class LeapService private constructor(private val context: Context) {
 
     fun isLoaded() = modelRunner != null
 
+    /** GGUF already on disk — loading it needs no network. */
+    fun isModelDownloaded(modelSlug: String, quantSlug: String): Boolean {
+        val modelDir = LeapModelDownloader(context).getModelResourceFolder(modelSlug, quantSlug)
+        val ggufFile = File(modelDir, GGUF_FILENAME)
+        return ggufFile.exists() && ggufFile.length() > 1_000_000
+    }
+
     suspend fun downloadAndLoad(
         modelSlug: String,
         quantSlug: String,
@@ -184,7 +191,7 @@ class LeapService private constructor(private val context: Context) {
     ) = withContext(Dispatchers.IO) {
         val dl = LeapModelDownloader(context)
         val modelDir = dl.getModelResourceFolder(modelSlug, quantSlug)
-        val ggufFilename = "LFM2.5-1.2B-Instruct.Q4_K_M.gguf"
+        val ggufFilename = GGUF_FILENAME
         val schemaFile = File(modelDir, "$modelSlug-$quantSlug.json")
         val ggufFile = File(modelDir, ggufFilename)
 
@@ -377,6 +384,10 @@ class LeapService private constructor(private val context: Context) {
         modelRunner = null
     }
 
+    // NOTE: do NOT "optimize" this prompt or the user-message format above.
+    // The model is fine-tuned against this exact shape; changing wording or
+    // moving the hint into the user message broke extraction in the field
+    // (2026-07-12: 0 transactions found). Verify on-device before any change.
     private fun buildSystemPrompt(hint: BankHint?): String {
         val hintText = if (hint != null)
             "\nContext: SMS is from ${hint.bank} (${hint.country}). Default currency: ${hint.currency}."
@@ -402,6 +413,7 @@ Output ONLY the JSON, nothing else.""".trimIndent()
 
     companion object {
         private const val TAG = "LeapService"
+        private const val GGUF_FILENAME = "LFM2.5-1.2B-Instruct.Q4_K_M.gguf"
 
         @Volatile private var instance: LeapService? = null
 
@@ -510,6 +522,16 @@ class LeapModule(private val reactContext: ReactApplicationContext) :
     @ReactMethod
     fun isModelLoaded(promise: Promise) {
         promise.resolve(LeapService.getInstance()?.isLoaded() ?: false)
+    }
+
+    @ReactMethod
+    fun isModelDownloaded(modelSlug: String, quantSlug: String, promise: Promise) {
+        try {
+            val svc = LeapService.getInstance(reactContext)!!
+            promise.resolve(svc.isModelDownloaded(modelSlug, quantSlug))
+        } catch (e: Exception) {
+            promise.reject("CHECK_ERROR", e.message, e)
+        }
     }
 
     @ReactMethod

@@ -6,7 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initDb } from './database/Database';
 import { useStore } from './store';
-import { LeapModule } from './modules/LeapModule';
+import { LeapModule, MODELS } from './modules/LeapModule';
 import { SmsOrchestrator } from './services/SmsOrchestrator';
 import { TransactionRepository } from './database/TransactionRepository';
 import { font, alpha, themes, accent, accentInk } from './theme';
@@ -161,11 +161,28 @@ export default function App() {
 
     try { setActiveBudget(BudgetRepository.getActive()); } catch {}
 
+    // Reload the model from disk after process death — the download only ever
+    // happens in onboarding, but the in-memory runner dies with the process.
+    // Loading is local-only; inference stays user-triggered.
+    const autoLoadModel = async () => {
+      try {
+        if (await LeapModule.isModelLoaded()) { setModelLoaded(true); return; }
+        const m = MODELS.DEFAULT;
+        if (await LeapModule.isModelDownloaded(m.slug, m.quant)) {
+          await LeapModule.downloadAndLoadModel(m.slug, m.quant);
+          setModelLoaded(true);
+        }
+      } catch { /* onboarding path will surface load errors */ }
+    };
+    autoLoadModel();
+
+    // Pending count only needs SMS access + a keyword filter — don't gate it
+    // on the model; only "Run" needs the model.
     const refreshPending = async () => {
       try {
-        const loaded = await LeapModule.isModelLoaded();
-        setModelLoaded(loaded);
-        if (!loaded) { setPendingCount(0); return; }
+        setModelLoaded(await LeapModule.isModelLoaded());
+      } catch { /* keep previous value */ }
+      try {
         setPendingCount(await SmsOrchestrator.getPendingCount());
       } catch {
         setPendingCount(0);

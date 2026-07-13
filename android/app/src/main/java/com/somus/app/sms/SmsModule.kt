@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.database.Cursor
 import android.net.Uri
 import android.provider.Telephony
+import android.view.WindowManager
 import androidx.core.content.ContextCompat
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
@@ -27,10 +28,10 @@ class SmsModule(private val reactContext: ReactApplicationContext) :
         }
         moduleScope.launch {
             try {
-                val messages = querySmsInbox(
+                val messages = querySmsInboxPaged(
                     selection = "${Telephony.Sms.DATE} >= ? AND ${Telephony.Sms.DATE} <= ?",
                     selectionArgs = arrayOf(startMs.toLong().toString(), endMs.toLong().toString()),
-                    limit = batchSize.coerceAtMost(MAX_BATCH_SIZE)
+                    maxTotal = batchSize
                 )
                 promise.resolve(buildJsArray(messages))
             } catch (e: Exception) {
@@ -48,15 +49,25 @@ class SmsModule(private val reactContext: ReactApplicationContext) :
         }
         moduleScope.launch {
             try {
-                val messages = querySmsInbox(
+                val messages = querySmsInboxPaged(
                     selection = "${Telephony.Sms.DATE} > ?",
                     selectionArgs = arrayOf(sinceMs.toLong().toString()),
-                    limit = MAX_BATCH_SIZE
+                    maxTotal = FETCH_SINCE_HARD_CAP
                 )
                 promise.resolve(buildJsArray(messages))
             } catch (e: Exception) {
                 promise.reject("FETCH_ERROR", e.message, e)
             }
+        }
+    }
+
+    // ── Keep screen on during long-running syncs ──────────────────
+    @ReactMethod
+    fun setKeepScreenOn(on: Boolean) {
+        val activity = currentActivity ?: return
+        activity.runOnUiThread {
+            if (on) activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            else activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
 
@@ -113,6 +124,29 @@ class SmsModule(private val reactContext: ReactApplicationContext) :
                 promise.reject("COUNT_ERROR", e.message, e)
             }
         }
+    }
+
+    // Page through the provider in MAX_BATCH_SIZE chunks so large inboxes
+    // aren't silently truncated at a single query's LIMIT.
+    private fun querySmsInboxPaged(
+        selection: String,
+        selectionArgs: Array<String>,
+        maxTotal: Int
+    ): List<SmsMessage> {
+        val all = mutableListOf<SmsMessage>()
+        var offset = 0
+        while (all.size < maxTotal) {
+            val page = querySmsInbox(
+                selection = selection,
+                selectionArgs = selectionArgs,
+                limit = (maxTotal - all.size).coerceAtMost(MAX_BATCH_SIZE),
+                offset = offset
+            )
+            all.addAll(page)
+            if (page.size < MAX_BATCH_SIZE) break
+            offset += page.size
+        }
+        return all
     }
 
     // ── Core ContentResolver query ─────────────────────────────────
@@ -223,6 +257,9 @@ class SmsModule(private val reactContext: ReactApplicationContext) :
     companion object {
         const val MAX_BATCH_SIZE = 500
         const val PROGRESS_BATCH_SIZE = 50
+        // Safety bound for fetchSince after a long absence — keeps the bridge
+        // payload sane; the JS keyword filter trims it further before inference.
+        const val FETCH_SINCE_HARD_CAP = 5_000
     }
 }
 

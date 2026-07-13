@@ -112,7 +112,7 @@ The dashboard (`src/screens/DashboardScreen.tsx`) follows the Liquid OS design w
 
 ## Android Permissions
 
-READ_SMS (inbox access), INTERNET (model download only), POST_NOTIFICATIONS + FOREGROUND_SERVICE + FOREGROUND_SERVICE_DATA_SYNC (model downloader), WAKE_LOCK (inference). RECEIVE_SMS removed — no live SMS detection.
+READ_SMS (inbox access — core functionality, declared under Play's "SMS-based money management" exception) and INTERNET (model download only). Nothing else: POST_NOTIFICATIONS/FOREGROUND_SERVICE*/WAKE_LOCK were removed because no service, notification, or wake lock exists in the code — unused permissions invite Play review scrutiny. Long syncs keep the screen awake via `SmsModule.setKeepScreenOn` (window flag) instead. RECEIVE_SMS removed — no live SMS detection.
 
 ## GitHub Repository
 

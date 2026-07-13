@@ -2,19 +2,24 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- SMS permissions -->
+    <!-- SMS permissions (core functionality — declared under Play's
+         "SMS-based money management" exception) -->
     <uses-permission android:name="android.permission.READ_SMS" />
 
     <!-- Model download (one-time only) -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- LEAP model downloader -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-
-    <!-- Keep CPU alive during inference -->
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Strip permissions merged in by libraries but never exercised:
+         - FGS/notifications come from leap-model-downloader's WorkManager
+           download path, which we bypass (custom HTTP download). The FGS_DATA_SYNC
+           entry alone would force a Play Console foreground-service declaration.
+         - Storage permissions come from react-native-fs/share; backup uses the
+           app cache dir + share sheet, and minSdk 31 ignores them anyway. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" tools:node="remove" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:node="remove" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" />
 
     <application
         android:name=".MainApplication"

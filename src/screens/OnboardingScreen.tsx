@@ -8,6 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { LeapModule, MODELS } from '../modules/LeapModule';
+import { SmsModule } from '../modules/SmsModule';
 import { useStore } from '../store';
 import { RootStackParams } from '../App';
 import { themes, accent, accentInk, font, alpha, ThemeMode } from '../theme';
@@ -35,9 +36,23 @@ export default function OnboardingScreen() {
   }, [step]);
 
   useEffect(() => {
-    LeapModule.isModelLoaded().then((loaded) => {
-      if (loaded) { setModelLoaded(true); nav.replace('Main'); }
-    });
+    (async () => {
+      try {
+        if (await LeapModule.isModelLoaded()) {
+          setModelLoaded(true);
+          nav.replace('Main');
+          return;
+        }
+        // Model on disk + permission granted means onboarding already ran —
+        // go straight in; App.tsx auto-loads the model in the background.
+        const m = MODELS.DEFAULT;
+        const [downloaded, hasPerm] = await Promise.all([
+          LeapModule.isModelDownloaded(m.slug, m.quant),
+          SmsModule.hasPermission(),
+        ]);
+        if (downloaded && hasPerm) nav.replace('Main');
+      } catch { /* stay in onboarding */ }
+    })();
   }, []);
 
   useEffect(() => {

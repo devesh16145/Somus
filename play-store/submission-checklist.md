@@ -12,20 +12,22 @@ Run through this in order before hitting "Submit for review" in the Play Console
 
 ## 2. Build artifacts
 
-- [ ] `scripts/release-smoke.sh --no-clean --no-install --bundle` produced:
-  - [ ] `android/app/build/outputs/bundle/release/app-release.aab`
-  - [ ] `android/app/build/outputs/mapping/release/mapping.txt`
-- [ ] AAB signed with release key (script's signature check passes)
-- [ ] `versionCode = 1`, `versionName = "1.0"` (confirm in `aapt dump badging`)
-- [ ] `applicationId = com.somus.app` (confirm)
+- [x] `scripts/release-smoke.sh --no-clean --no-install --bundle` produced:
+  - [x] `android/app/build/outputs/bundle/release/app-release.aab` (83 MB)
+  - [x] `android/app/build/outputs/mapping/release/mapping.txt` (23 MB)
+- [x] AAB signed with release key (`CN=Somus, O=Devesh Yadav` — non-debug, verified)
+- [x] `versionCode = 1`, `versionName = "1.0"` (confirmed via `aapt dump badging`)
+- [x] `applicationId = com.somus.app` (confirmed)
 
 ## 3. Visual assets
 
-- [ ] **App icon 512×512 PNG** (NOT the 192×192 currently in mipmap-xxxhdpi — needs regeneration)
+- [x] **App icon 512×512 PNG** → `play-store/icon-512.png` (amber Fraunces 's' on
+      near-black; opaque RGB, no alpha). Launcher/adaptive icons also regenerated.
 - [ ] **Feature graphic 1024×500 PNG** (top of listing)
 - [ ] **Phone screenshots** — 2 to 8, min 320px shortest side, max 3840px longest
   - Recommended: dashboard, transaction list, transaction detail, sync screen, settings
-  - Take with `adb exec-out screencap -p > screen.png` for clean captures
+  - On Windows use `adb shell screencap -p /sdcard/s.png && adb pull /sdcard/s.png`
+    (piping `exec-out ... > file` through Git Bash corrupts the binary)
 - [ ] **Optional:** 7" + 10" tablet screenshots if you want tablet layout shown
 
 ## 4. Listing copy (from `listing.md`)

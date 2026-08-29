@@ -12,17 +12,19 @@ Run through this in order before hitting "Submit for review" in the Play Console
 
 ## 2. Build artifacts
 
-- [x] `scripts/release-smoke.sh --no-clean --no-install --bundle` produced:
-  - [x] `android/app/build/outputs/bundle/release/app-release.aab` (83 MB)
-  - [x] `android/app/build/outputs/mapping/release/mapping.txt` (23 MB)
-- [x] AAB signed with release key (`CN=Somus, O=Devesh Yadav` — non-debug, verified)
-- [x] `versionCode = 1`, `versionName = "1.0"` (confirmed via `aapt dump badging`)
-- [x] `applicationId = com.somus.app` (confirmed)
+- [x] `targetSdkVersion = 36` (required for new submissions from August 31, 2026)
+- [ ] Fresh post-logo/API-36 build: `scripts/release-smoke.sh --no-clean --no-install --bundle` produced:
+  - [ ] `android/app/build/outputs/bundle/release/app-release.aab`
+  - [ ] `android/app/build/outputs/mapping/release/mapping.txt`
+- [ ] Fresh AAB signed with release key (script's signature check passes)
+- [ ] `versionCode = 1`, `versionName = "1.0"` (use versionCode 2 if v1 was already uploaded)
+- [ ] `applicationId = com.somus.app` and `targetSdkVersion = 36` confirmed
 
 ## 3. Visual assets
 
-- [x] **App icon 512×512 PNG** → `play-store/icon-512.png` (amber Fraunces 's' on
-      near-black; opaque RGB, no alpha). Launcher/adaptive icons also regenerated.
+- [x] **App icon 512×512 PNG** → `play-store/icon-512.png` (approved amber
+      extracted-value symbol on Somus near-black/warm-charcoal field; opaque RGB,
+      no alpha). Adaptive and legacy launcher icons regenerated.
 - [ ] **Feature graphic 1024×500 PNG** (top of listing)
 - [ ] **Phone screenshots** — 2 to 8, min 320px shortest side, max 3840px longest
   - Recommended: dashboard, transaction list, transaction detail, sync screen, settings
@@ -80,10 +82,11 @@ Run through this in order before hitting "Submit for review" in the Play Console
 
 Recommended progression:
 
-- [ ] **Internal testing** track first — 2-day soak, 5 testers (just you + close contacts)
-- [ ] If clean: promote to **Closed testing** (alpha) — 20-50 testers
-- [ ] If clean: **Open testing** OR direct to Production
-- [ ] **Production** — submit for review
+- [ ] **Internal testing** first for release smoke testing
+- [ ] **Closed testing:** for Personal accounts created after November 13, 2023,
+      keep at least **12 testers opted in continuously for 14 days**
+- [ ] Apply for production access after the closed-test requirement is satisfied
+- [ ] If approved: **Open testing** or **Production**
 
 ## 10. Post-submission
 

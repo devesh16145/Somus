@@ -17,6 +17,6 @@ buildscript {
 // via rootProject.ext.get("ndkVersion") / getExtOrDefault() etc.
 extra["ndkVersion"]        = "27.1.12297006"
 extra["compileSdkVersion"] = 36
-extra["targetSdkVersion"]  = 35
+extra["targetSdkVersion"]  = 36
 extra["minSdkVersion"]     = 31
 extra["kotlinVersion"]     = "2.0.21"

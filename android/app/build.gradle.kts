@@ -28,7 +28,7 @@ android {
     defaultConfig {
         applicationId = "com.somus.app"
         minSdk = 31
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
     }

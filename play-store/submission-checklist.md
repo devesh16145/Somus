@@ -13,12 +13,13 @@ Run through this in order before hitting "Submit for review" in the Play Console
 ## 2. Build artifacts
 
 - [x] `targetSdkVersion = 36` (required for new submissions from August 31, 2026)
-- [ ] Fresh post-logo/API-36 build: `scripts/release-smoke.sh --no-clean --no-install --bundle` produced:
-  - [ ] `android/app/build/outputs/bundle/release/app-release.aab`
-  - [ ] `android/app/build/outputs/mapping/release/mapping.txt`
-- [ ] Fresh AAB signed with release key (script's signature check passes)
-- [ ] `versionCode = 1`, `versionName = "1.0"` (use versionCode 2 if v1 was already uploaded)
-- [ ] `applicationId = com.somus.app` and `targetSdkVersion = 36` confirmed
+- [x] Fresh post-logo/API-36 build: `scripts/release-smoke.sh --no-clean --no-install --bundle` produced:
+  - [x] `android/app/build/outputs/bundle/release/app-release.aab` (87,111,319 bytes)
+  - [x] `android/app/build/outputs/mapping/release/mapping.txt` (24,387,269 bytes)
+- [x] Fresh AAB/APK signed with release key (`CN=Somus`; non-debug verified)
+- [x] `versionCode = 1`, `versionName = "1.0"`
+- [x] `applicationId = com.somus.app` and `targetSdkVersion = 36` confirmed
+- [x] Packaged platform permissions limited to `READ_SMS` and `INTERNET`
 
 ## 3. Visual assets
 

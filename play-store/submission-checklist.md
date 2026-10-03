@@ -13,10 +13,11 @@ Run through this in order before hitting "Submit for review" in the Play Console
 ## 2. Build artifacts
 
 - [x] `targetSdkVersion = 36` (required for new submissions from August 31, 2026)
-- [x] Fresh post-logo/API-36 build: `scripts/release-smoke.sh --no-clean --no-install --bundle` produced:
-  - [x] `android/app/build/outputs/bundle/release/app-release.aab` (87,111,319 bytes)
-  - [x] `android/app/build/outputs/mapping/release/mapping.txt` (24,387,269 bytes)
-- [x] Fresh AAB/APK signed with release key (`CN=Somus`; non-debug verified)
+- [ ] Rebuild after the 2026-08-31 in-app Terms/Privacy changes:
+      `scripts/release-smoke.sh --no-clean --no-install --bundle`
+  - [ ] Verify the new `android/app/build/outputs/bundle/release/app-release.aab`
+  - [ ] Verify the new `android/app/build/outputs/mapping/release/mapping.txt`
+- [ ] Verify the rebuilt AAB/APK is signed with the release key (`CN=Somus`; non-debug)
 - [x] `versionCode = 1`, `versionName = "1.0"`
 - [x] `applicationId = com.somus.app` and `targetSdkVersion = 36` confirmed
 - [x] Packaged platform permissions limited to `READ_SMS` and `INTERNET`
@@ -26,8 +27,10 @@ Run through this in order before hitting "Submit for review" in the Play Console
 - [x] **App icon 512×512 PNG** → `play-store/icon-512.png` (approved amber
       extracted-value symbol on Somus near-black/warm-charcoal field; opaque RGB,
       no alpha). Adaptive and legacy launcher icons regenerated.
-- [ ] **Feature graphic 1024×500 PNG** (top of listing)
-- [ ] **Phone screenshots** — 2 to 8, min 320px shortest side, max 3840px longest
+- [x] **Feature graphic 1024×500 PNG** →
+      `play-store/feature-graphic-1024x500.png` (opaque RGB)
+- [x] **Phone screenshots** — 4 accepted upload assets in
+      `play-store/screenshots/play-upload/` (1080×1920 PNG)
   - Recommended: dashboard, transaction list, transaction detail, sync screen, settings
   - On Windows use `adb shell screencap -p /sdcard/s.png && adb pull /sdcard/s.png`
     (piping `exec-out ... > file` through Git Bash corrupts the binary)
@@ -46,10 +49,12 @@ Run through this in order before hitting "Submit for review" in the Play Console
 
 ## 5. Privacy policy hosting
 
-- [ ] Vercel project connected to `devesh16145/Somus`, Root Directory set to `web/` (see `web/README.md`)
-- [ ] First deploy succeeded — confirm at `https://<project>.vercel.app/privacy`
+- [x] Vercel project `web` linked locally from `web/` (CLI deployment)
+- [x] Production deploy succeeded at
+      `https://web-peach-two-34.vercel.app/privacy/`
 - [ ] URL pasted into Play Console → Store listing → Privacy policy
-- [ ] Verified URL loads from a clean browser without auth
+- [x] Verified public URL returns HTTP 200 without authentication and includes
+      the policy title, source-SMS disclosure, and contact address
 
 ## 6. Data Safety form (from `data-safety.md`)
 

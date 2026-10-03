@@ -15,8 +15,8 @@ based on what Somus actually does (verified against the codebase as of v1.0).
 
 **Answer:** No.
 
-Justification: SMS content is read on-device, parsed on-device, and the
-structured result is stored on-device. None of this counts as "collected"
+Justification: SMS content is read on-device, parsed on-device, and financial
+messages are stored with the structured result on-device. None of this counts as "collected"
 under Google's definition because the data does not leave the device and
 is not sent to any service the developer controls. The Hugging Face model
 download is a one-way fetch of public model weights — no user data is
@@ -34,15 +34,11 @@ download) goes over HTTPS to `huggingface.co`. The manifest sets
 
 > **Do you provide a way for users to request that their data is deleted?**
 
-**Answer:** Yes. Settings includes a "Wipe data" / uninstall flow. The
-SQLite database, model file, and any backups are local — uninstalling
-the app deletes all of them. The Settings screen also exposes per-table
-data-clearing controls.
-
-(Verify before submission: confirm Settings actually has a wipe-all
-option that calls `TransactionRepository.deleteAll()` and clears
-sync_state. If it only deletes transactions, mention that uninstall is
-the complete-removal path.)
+**Answer:** Yes. Users can delete transactions in the app. Android's
+standard Clear storage or Uninstall controls remove the app-private
+SQLite database, model file, cache, and preferences. Files the user
+explicitly saved or shared to another destination remain under that
+destination's control and must be deleted there separately.
 
 ## 2. Data types — answer per category
 
@@ -61,12 +57,12 @@ For each, answer: collected? shared? required/optional? purpose?
 | **Financial info — Credit score** | No | No | — |
 | **Financial info — Other financial info** | No | No | Transaction records derived from SMS stay on-device |
 | **Health and fitness** | No | No | — |
-| **Messages — SMS or MMS** | No | No | **Read on-device for the declared SMS-based-money-management use case. Not collected, not transmitted, not shared.** |
+| **Messages — SMS or MMS** | No | No | **Read and retained locally for saved transactions under the declared SMS-based-money-management use case. Not transmitted or shared by Somus.** |
 | **Messages — Emails** | No | No | — |
 | **Messages — Other in-app messages** | No | No | — |
 | **Photos and videos** | No | No | — |
 | **Audio files** | No | No | — |
-| **Files and docs** | No | No | Backup JSON is written to user's Downloads folder by user action only; not transmitted |
+| **Files and docs** | No | No | Backup JSON/CSV is created in app cache and handed to Android's system share/save sheet by user action; Somus does not transmit it |
 | **Calendar** | No | No | — |
 | **Contacts** | No | No | — |
 | **App activity — App interactions** | No | No | No analytics |
@@ -84,26 +80,28 @@ For each, answer: collected? shared? required/optional? purpose?
 
 - **Encrypted in transit:** Yes (HTTPS-only; no cleartext traffic per manifest)
 - **Encrypted at rest:** No. SQLite database and JSON backups are stored in app-private storage but are not separately encrypted. Disclose this honestly. *(Action item: when prompted by Google for an encryption claim, do not check "encrypted at rest" — per `feedback_no_false_security_claims.md`.)*
-- **Users can request data be deleted:** Yes (uninstall removes everything; Settings has wipe controls)
+- **Users can request data be deleted:** Yes (individual transaction deletion in-app; Android Clear storage or Uninstall removes all app-private data)
 - **Data is committed to follow Play Families Policy:** N/A (not a kids app)
 - **Independent security review:** No
 
 ## 4. Summary statement (free-text, ~200 words)
 
 ```
-Somus does not collect, transmit, or share any user data. All SMS
-processing, transaction parsing, and database storage happen entirely
-on the user's device. The only network connection the app makes is a
+Somus does not collect, transmit, or share any user data. SMS processing,
+transaction parsing, source-message retention for saved transactions,
+and database storage happen entirely on the user's device. The only network connection the app makes is a
 one-time download of the on-device language model from Hugging Face;
 this download contains no user data and is one-way (the user receives
 the model, the app sends nothing back).
 
 The app has no user accounts, no analytics SDKs, no advertising SDKs,
 no third-party crash-reporting services, and no telemetry endpoints of
-any kind. Local backups (export to JSON) are written to the user's
-Downloads folder by user action and are never transmitted.
+any kind. Local JSON/CSV backups are created in app cache and handed to
+Android's system share/save sheet by user action. Somus never uploads
+them.
 
-Uninstalling the app removes every byte of user data: the SQLite
-database, the downloaded model file, and all preferences. The
-Settings screen also provides explicit data-deletion controls.
+Android's Clear storage or Uninstall controls remove the SQLite
+database, downloaded model, cache, and preferences. Users can also
+delete individual transactions in the app. Copies explicitly saved or
+shared elsewhere are controlled by the selected destination.
 ```

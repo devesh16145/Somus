@@ -38,8 +38,9 @@ How SMS is used:
 2. Each message body is passed to a locally-running 1.2-billion-parameter
    language model (Liquid AI's LFM2-1.2B, downloaded once via the
    Hugging Face Hub) that extracts a structured transaction record.
-3. The structured record is written to a local SQLite database, deduped
-   by Android's SMS row ID. The raw SMS body is not persisted.
+3. The structured record and its source SMS body are written to the
+   app-private local SQLite database, deduped by Android's SMS row ID.
+   This lets the user review, edit, delete, and export the transaction.
 4. The user views their transactions on the dashboard and can set
    budgets, goals, and subscription tracking from this data.
 
@@ -56,8 +57,9 @@ code at https://github.com/devesh16145/Somus):
 • No third-party analytics SDKs, no advertising SDKs, no crash-reporting
   services that transmit user data.
 • No user account, no signup, no telemetry endpoint of any kind.
-• Backups (export/import) are written to the user's local Downloads
-  folder as JSON; they are never uploaded.
+• Backups are created locally and handed to Android's system share/save
+  sheet as JSON or CSV. Somus never uploads them; the user chooses the
+  destination.
 
 Why a less invasive permission won't work:
 

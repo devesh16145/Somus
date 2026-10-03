@@ -67,13 +67,14 @@ formats — far better than the regex-based trackers it replaces.
 
 █ Privacy in detail
 
-• SMS content is read by Android's standard ContentResolver, processed by
-  the on-device LLM, and discarded after a structured transaction is
-  extracted. The original SMS body is not stored.
+• SMS content is read by Android's standard ContentResolver and processed
+  by the on-device LLM. For saved transactions, the source SMS body is
+  retained only in the app's local database so you can review and export
+  the record. Messages not saved as transactions are not retained.
 • Internet is used only for a one-time ~700 MB model download from
   Hugging Face. After that, the app does not require a network connection.
-• Backups stay on-device. They are written to the system download folder
-  and never uploaded.
+• Backups are created locally and passed to Android's system share/save
+  sheet. Somus never uploads them; you choose their destination.
 • No third-party SDKs, no advertising libraries, no crash-reporting service
   that exfiltrates data.
 
@@ -125,5 +126,6 @@ Char count: ~330.
 ## Contact details
 
 - **Email:** devesh.iiitd@gmail.com (or a dedicated `somus.app@gmail.com`)
-- **Website:** https://github.com/devesh16145/Somus (or a landing page once you have one)
+- **Website:** https://web-peach-two-34.vercel.app/
+- **Privacy policy:** https://web-peach-two-34.vercel.app/privacy/
 - **Phone:** optional, leave blank

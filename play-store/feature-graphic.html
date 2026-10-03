@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1024,height=500,initial-scale=1">
+<style>
+  * { box-sizing: border-box; }
+  html, body { width: 1024px; height: 500px; margin: 0; overflow: hidden; }
+  body {
+    background:
+      radial-gradient(circle at 20% 50%, rgba(255,205,91,.22), transparent 34%),
+      linear-gradient(118deg, #f6f5f0 0%, #fbfaf6 58%, #f1eee5 100%);
+    color: #171717;
+    font-family: "Space Grotesk", "Segoe UI", Arial, sans-serif;
+  }
+  .canvas { position: relative; width: 100%; height: 100%; }
+  .grain {
+    position: absolute; inset: 0; opacity: .22;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.055'/%3E%3C/svg%3E");
+  }
+  .icon-wrap {
+    position: absolute; left: 76px; top: 70px; width: 360px; height: 360px;
+    filter: drop-shadow(0 24px 32px rgba(25,22,16,.16));
+  }
+  .icon-wrap img { display: block; width: 100%; height: 100%; border-radius: 76px; }
+  .copy { position: absolute; left: 520px; top: 116px; width: 430px; }
+  .eyebrow {
+    display: flex; align-items: center; gap: 11px; margin-bottom: 22px;
+    color: #7b6a42; font-size: 16px; font-weight: 650; letter-spacing: .16em;
+    text-transform: uppercase;
+  }
+  .eyebrow::before { content: ""; width: 38px; height: 3px; border-radius: 3px; background: #ffcd5b; }
+  h1 { margin: 0; font-size: 86px; line-height: .94; letter-spacing: -.065em; font-weight: 650; }
+  .tagline { margin-top: 25px; font-size: 29px; line-height: 1.22; letter-spacing: -.025em; color: #484640; }
+  .privacy { margin-top: 31px; display: flex; align-items: center; gap: 11px; font-size: 16px; color: #6d6a62; }
+  .privacy-mark { width: 10px; height: 10px; border-radius: 50%; background: #ffcd5b; box-shadow: 0 0 0 6px rgba(255,205,91,.18); }
+  .flow { position: absolute; right: -52px; bottom: -46px; width: 430px; height: 180px; opacity: .58; }
+</style>
+</head>
+<body>
+<main class="canvas">
+  <div class="grain"></div>
+  <div class="icon-wrap"><img src="icon-512.png" alt=""></div>
+  <section class="copy">
+    <div class="eyebrow">Private by design</div>
+    <h1>Somus</h1>
+    <div class="tagline">Your money stays yours.</div>
+    <div class="privacy"><span class="privacy-mark"></span>On-device AI · No cloud · No accounts</div>
+  </section>
+  <svg class="flow" viewBox="0 0 430 180" fill="none" aria-hidden="true">
+    <path d="M6 144C84 144 96 44 175 44S267 133 424 28" stroke="#d8c78f" stroke-width="2"/>
+    <path d="M24 177C103 177 126 86 205 86S300 157 436 76" stroke="#e4d9b7" stroke-width="2"/>
+    <circle cx="175" cy="44" r="7" fill="#FFCD5B"/><circle cx="205" cy="86" r="5" fill="#171717"/>
+  </svg>
+</main>
+</body>
+</html>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Linking } from 'react-native';
 import { LiquidDialog } from '../components/LiquidDialog';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -11,6 +11,9 @@ import { TransactionRepository } from '../database/TransactionRepository';
 import { themes, accent, accentInk, font, alpha, ThemeMode } from '../theme';
 import LiquidIcon from '../components/LiquidIcons';
 import { RootStackParams } from '../App';
+
+const PRIVACY_URL = 'https://web-peach-two-34.vercel.app/privacy/';
+const TERMS_URL = 'https://web-peach-two-34.vercel.app/terms/';
 
 export default function SettingsScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
@@ -97,6 +100,16 @@ export default function SettingsScreen() {
            <SettingRow t={t} icon="download" name="Backup & Restore" sub="Export portable file, import on reinstall" onPress={() => nav.navigate('Backup')} />
            <SettingRow t={t} icon="cog" name="Crash Logs" sub="Local-only diagnostics, share manually" last onPress={() => nav.navigate('CrashLogs')} />
         </View>
+
+        {/* Legal and accuracy notice */}
+        <View style={[s.card, { paddingVertical: 8, paddingHorizontal: 0 }]}>
+           <SettingRow t={t} icon="shield" name="Privacy Policy" sub="How Somus handles data" onPress={() => Linking.openURL(PRIVACY_URL)} />
+           <SettingRow t={t} icon="document" name="Terms of Use" sub="Accuracy, responsibilities and limitations" last onPress={() => Linking.openURL(TERMS_URL)} />
+        </View>
+
+        <Text style={{ marginHorizontal: 32, fontFamily: font.ui, fontSize: 11, lineHeight: 17, color: t.mute, textAlign: 'center' }}>
+          Automated records may be inaccurate. Verify against official statements. Somus is not financial advice.
+        </Text>
 
         {/* Footer */}
         <View style={{ alignItems: 'center', marginTop: 40, marginBottom: 20 }}>

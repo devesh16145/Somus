@@ -1,5 +1,5 @@
 // Build static HTML for Vercel.
-// Reads play-store/privacy-policy.md (single source of truth), renders to public/.
+// Reads the deployable policy mirror in this directory and renders to public/.
 // Vercel runs `npm run build` on every push; output dir is `public/`.
 
 import { marked } from 'marked';
@@ -8,7 +8,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(here, '..');
 const publicDir = path.join(here, 'public');
 
 const template = fs.readFileSync(path.join(here, 'template.html'), 'utf8');
@@ -33,6 +32,7 @@ message off your phone.</p>
 
 <ul>
   <li><a href="/privacy/">Privacy policy</a></li>
+  <li><a href="/terms/">Terms of use</a></li>
   <li><a href="https://github.com/devesh16145/Somus">Source on GitHub</a></li>
   <li>Contact: <a href="mailto:devesh.iiitd@gmail.com">devesh.iiitd@gmail.com</a></li>
 </ul>
@@ -40,12 +40,15 @@ message off your phone.</p>
 
 // Privacy policy (rendered from markdown)
 const policyMd = fs.readFileSync(
-  path.join(repoRoot, 'play-store', 'privacy-policy.md'),
+  path.join(here, 'privacy-policy.md'),
   'utf8',
 );
 const policyHtml = marked.parse(policyMd);
+const termsMd = fs.readFileSync(path.join(here, 'terms-of-use.md'), 'utf8');
+const termsHtml = marked.parse(termsMd);
 
 console.log('building public/');
 writeFile('index.html', renderPage('Somus', landingHtml));
 writeFile('privacy/index.html', renderPage('Privacy Policy — Somus', policyHtml));
+writeFile('terms/index.html', renderPage('Terms of Use — Somus', termsHtml));
 console.log('done.');

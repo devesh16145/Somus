@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Animated,
+  View, Text, StyleSheet, TouchableOpacity, Animated, Linking,
   PermissionsAndroid, ScrollView, ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +16,9 @@ import LiquidIcon from '../components/LiquidIcons';
 
 type Nav = NativeStackNavigationProp<RootStackParams, 'Onboarding'>;
 type Step = 'welcome' | 'sms_permission' | 'model_download';
+
+const PRIVACY_URL = 'https://web-peach-two-34.vercel.app/privacy/';
+const TERMS_URL = 'https://web-peach-two-34.vercel.app/terms/';
 
 export default function OnboardingScreen() {
   const nav = useNavigation<Nav>();
@@ -111,11 +114,22 @@ export default function OnboardingScreen() {
                 <FeatureRow t={t} icon="home" title="Sandboxed by Android" sub="Your data lives in this app's private storage, isolated from other apps on your device." />
               </View>
 
+              <Text style={{ fontFamily: font.ui, fontSize: 12, lineHeight: 18, color: t.mute, textAlign: 'center', marginBottom: 12 }}>
+                Automated results may be wrong. Verify records against official statements. Somus is not financial advice.
+              </Text>
+
               <TouchableOpacity style={s.btn} onPress={() => { fadeAnim.setValue(0); setStep('sms_permission'); }}>
-                <Text style={s.btnText}>Get Started &#x2192;</Text>
+                <Text style={s.btnText}>Agree &amp; Get Started &#x2192;</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={{ alignSelf: 'center', marginTop: 20, marginBottom: 50 }}>
+              <Text style={{ fontFamily: font.ui, fontSize: 11, lineHeight: 17, color: t.mute, textAlign: 'center', marginTop: 12 }}>
+                By continuing, you agree to the{' '}
+                <Text style={{ color: aink, textDecorationLine: 'underline' }} onPress={() => Linking.openURL(TERMS_URL)}>Terms of Use</Text>
+                {' '}and acknowledge the{' '}
+                <Text style={{ color: aink, textDecorationLine: 'underline' }} onPress={() => Linking.openURL(PRIVACY_URL)}>Privacy Policy</Text>.
+              </Text>
+
+              <TouchableOpacity style={{ alignSelf: 'center', marginTop: 18, marginBottom: 50 }}>
                 <Text style={{ fontFamily: font.uiBold, fontSize: 14, color: aink }}>Learn about security</Text>
               </TouchableOpacity>
 

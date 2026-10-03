@@ -75,3 +75,17 @@ nul
 
 # Logs
 *.log
+
+# Local Play Store capture/review working files
+play-store/somus-*.xml
+play-store/somus-permission-demo-raw.mp4
+play-store/screenshots/*.xml
+play-store/screenshots/raw-device/
+play-store/screenshots/preview/
+play-store/screenshots/store-ready/
+play-store/screenshots/00-*.png
+play-store/screenshots/01-onboarding-step.png
+play-store/screenshots/somus-now.png
+
+# Generated release manifest; regenerate after each signed build
+play-store/upload-manifest.md
